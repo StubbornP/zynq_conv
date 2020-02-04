@@ -14,8 +14,6 @@
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
-#include <string>
-#include <cstring>
 
 // Index data type define
 typedef ap_uint<4> peidx_t;

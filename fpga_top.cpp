@@ -79,7 +79,7 @@
 
 void fpga_top(conv_t conv, data32_t cmd,
 		volatile data16_t* SHM16_DRAM) {
-#pragma HLS INTERFACE m_axi depth=DRAM_DEPTH port=SHM16_DRAM offset=0 bundle=data_bus register
+#pragma HLS INTERFACE m_axi depth=DRAM_DEPTH port=SHM16_DRAM offset=0 bundle=data_bus register max_read_burst_length=9*N_PE
 
 #pragma HLS INTERFACE s_axilite port = conv bundle = ctrl_bus register
 #pragma HLS INTERFACE s_axilite port = cmd bundle = ctrl_bus register

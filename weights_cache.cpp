@@ -1,103 +1,108 @@
 #include "weights_cache.hpp"
 #include "config_board.hpp"
-
+#include <iostream>
 namespace WeightsCache {
 // BRAM cache
-data16_t WBRAM[N_PE][1024][9];
-cidx_t oc_align;
+data16_t WBRAM[1024][N_PE][9];
+cidx_t align;
 
 void getBRAMIndex(const cidx_t oc, const widx_t ic_offset, peidx_t& peid,
                   cacheline_idx_t& line, flt_idx& flt_id) {
 #pragma HLS INLINE
-	kernel_t kernel = ConfigBoard::getConv().kernel;
-    widx_t temp;
+	widx_t temp;
 
-    peid = oc % N_PE;
-    temp = (ic_offset + oc) / N_PE;
-
-    if (kernel == 1) {
-    	line = temp / 9;
-    	flt_id = temp % 9;
-    } else if (kernel == 3) {
-    	line = temp;
+    if (ConfigBoard::is1x1Conv()) {
+    	flt_id = (ic_offset + oc) % 9;
+    	temp = (ic_offset + oc) / 9;
+    } else {
+        temp = ic_offset + oc;
     }
-    LOG("WCache: get BRAM Index,kernel_size: %d,  oc: %d, ic_offset: %d, peid: "
-        "%d, line: %d, flt_id: %d\n",
-        (int)kernel, (int)oc, (int)ic_offset, (int)peid, (int)line,
+
+    peid = temp % N_PE;
+	line = temp / N_PE;
+
+    LOG("WCache: get BRAM Index,  oc: %d, ic_offset: %d, peid: "
+        "%d, line: %d, flt_id: %d\n", (int)oc, (int)ic_offset, (int)peid, (int)line,
         (int)flt_id);
 }
 // load weight from DRAM
-data16_t loadWeight(volatile data16_t* SHARED_DRAM, widx_t offset) {
-#pragma HLS INLINE
-#pragma HLS PIPELINE
-    const conv_t& conv_cfg = ConfigBoard::getConv();
-    const memaddr_t& weights_base = conv_cfg.weights;
-
-    data16_t data = SHARED_DRAM[weights_base + offset];
-    LOG("WCache: loading weights from DRAM@%4p, offset@%4x, data: %d\n",
-        SHARED_DRAM, (int)offset, (int)data);
-    return data;
-}
 
 widx_t getInputChannelOffset(const cidx_t ic) {
 #pragma HLS INLINE OFF
+    const conv_t& conv_cfg = ConfigBoard::getConv();
     widx_t off;
-    off = ic * oc_align;
+    off = ic * conv_cfg.oc;
 #pragma HLS RESOURCE variable=off core=MulnS latency=3
     LOG("WCache: get weights channel base, ic=%d: %u\n", (int)ic, (unsigned int)off);
     return off;
 }
 
-// load layer weights from DRAM
-void loadWeights(volatile data16_t* SHARED_DRAM) {
+void loadWeightsConv1(volatile data16_t *SHM16_DRAM) {
 #pragma HLS INLINE
-#pragma HLS ARRAY_PARTITION variable=WBRAM complete dim=1 // PE ID
-#pragma HLS ARRAY_PARTITION variable=WBRAM complete dim=3 // weights ID
-#pragma HLS RESOURCE variable=WBRAM core=RAM_S2P_BRAM latency=3
-
     const conv_t& conv_cfg = ConfigBoard::getConv();
-    assert((conv_cfg.kernel == 1 || conv_cfg.kernel == 3) ||
-           "invalid kernel size");
-    const flt_idx weights_per_flt = ConfigBoard::is1x1Conv() ? 1 : 9;
-    assert((weights_per_flt == 1 || weights_per_flt == 9) ||
-           "invalid weights_per_flt");
-    const widx_t weights_per_oc = conv_cfg.oc * weights_per_flt;
     const cidx_t ic = conv_cfg.ic;
     const cidx_t oc = conv_cfg.oc;
+    const kernel_t kernel = conv_cfg.kernel;
+    const widx_t burst = 9 * N_PE;
 
-    {
-        widx_t temp;
-        temp = oc + (N_PE - 1);
-        oc_align = temp - temp % N_PE;
-    }
+    assert(conv_cfg.kernel == 1 || "invalid kernel size");
 
-    widx_t weights_offset = 0;
-WCACHE_LOAD_IC:
-    for (cidx_t ci = 0; ci < ic; ci++) {
-#pragma HLS LOOP_TRIPCOUNT MIN=3 AVG=238 MAX=640
-        widx_t ci_offset = getInputChannelOffset(ci);
-        widx_t co_offset = 0;
-        flt_idx flt_offset = 0;
-        for (widx_t i = 0; i < weights_per_oc; i++) {
-#pragma HLS LOOP_TRIPCOUNT MIN=16 AVG=258 MAX=640
-#pragma HLS PIPELINE II=2
-            peidx_t peid;
-            cacheline_idx_t line;
-            flt_idx flt = flt_offset;
-            getBRAMIndex(co_offset, ci_offset, peid, line, flt);
-            data16_t weight = loadWeight(SHARED_DRAM, weights_offset);
-            WBRAM[peid][line][flt] = weight;
-            LOG("WCache: save weight to cache oc: %d, ic_offset: %d, peid: "
-                "%d, line: %d, flt_id: %d, data: %d\n",
-                (int)co_offset, (int)ci_offset, (int)peid, (int)line,
-                (int)flt, (char)WBRAM[peid][line][flt]);
-            flt_offset++;
-            weights_offset++;
-            if (flt_offset == weights_per_flt) {
-                flt_offset = 0;
-                co_offset += 1;
-            }
+    widx_t total, offset, line;
+
+    total = ic * oc;
+    offset = line = 0;
+
+    WCACHE_LOAD:for (widx_t ch=0; ch<total;) {
+#pragma HLS LOOP_TRIPCOUNT MIN=3 AVG=238 MAX=1024
+        volatile data16_t *BASE = &SHM16_DRAM[offset];
+        for (widx_t i=0; i<burst; i++) {
+#pragma HLS PIPELINE
+        	WBRAM[line][i/9][i%9] = BASE[i];
         }
+        line++;
+        ch+=burst;
+        offset+=burst;
+    }
+}
+
+void loadWeightsConv3(volatile data16_t *SHM16_DRAM) {
+#pragma HLS INLINE
+    const conv_t& conv_cfg = ConfigBoard::getConv();
+    const cidx_t ic = conv_cfg.ic;
+    const cidx_t oc = conv_cfg.oc;
+    const kernel_t kernel = conv_cfg.kernel;
+    const widx_t burst = 9 * N_PE;
+
+    assert(conv_cfg.kernel == 3 || "invalid kernel size");
+
+    widx_t total, offset, line;
+
+    total = ic * oc;
+    offset = line = 0;
+
+    WCACHE_LOAD:for (widx_t ch=0; ch<total;) {
+#pragma HLS LOOP_TRIPCOUNT MIN=3 AVG=238 MAX=1024
+        volatile data16_t *BASE = &SHM16_DRAM[offset];
+        for (widx_t i=0; i<burst; i++) {
+#pragma HLS PIPELINE
+            WBRAM[line][i/9][i%9] = BASE[i];
+        }
+        line++;
+        ch+=N_PE;
+        offset+=burst;
+    }
+}
+
+// load layer weights from DRAM
+void loadWeights(volatile data16_t* SHM16_DRAM) {
+#pragma HLS INLINE
+#pragma HLS ARRAY_PARTITION variable=WBRAM complete dim=2 // PE ID
+#pragma HLS ARRAY_PARTITION variable=WBRAM complete dim=3 // weights ID
+#pragma HLS RESOURCE variable=WBRAM core=RAM_T2P_BRAM latency=3
+    if (ConfigBoard::is1x1Conv()) {
+    	loadWeightsConv1(SHM16_DRAM);
+    } else {
+    	loadWeightsConv3(SHM16_DRAM);
     }
 }
 
@@ -113,13 +118,15 @@ void fetch9Weights(widx_t ic_offset, cidx_t oc, data16_t weights[9]) {
     assert((ConfigBoard::is1x1Conv() | (flt_id == 0)) || "flt_idx should be zero");
 
     data16_t temp[9];
-    data16_t *BLOCK = WBRAM[peid][line];
+    data16_t *BLOCK = WBRAM[line][peid];
+
+    bool is_1x1 = ConfigBoard::is1x1Conv();
 #pragma HLS array_partition variable=temp complete dim=0
 L_FETCH_WEIGHTS:
     for (flt_idx i = 0; i < 9; i++) {
     	temp[i] = BLOCK[i];
-    	LOG("peid: %d, line: %d, flt_id: %d: %d\n", (int)peid, (int)line, (int)i, (int)temp[i]);
-		weights[i] = ConfigBoard::is1x1Conv()?data16_t(0): temp[i];
+    	LOG("peid: %d, line: %d, flt_id: %d: %d\n", (int)peid, (int)line, (int)i, (short)temp[i]);
+		weights[i] = is_1x1?data16_t(0): temp[i];
     }
     if (ConfigBoard::is1x1Conv())
     	weights[4] = temp[flt_id];

@@ -40,10 +40,12 @@ void processOC(dimidx_t h, dimidx_t w, cidx_t ci_offset, const data8_t in[9], bo
 	for (cidx_t co=0; co<oc; co++) {
 #pragma HLS LOOP_TRIPCOUNT min = 32 max = 560 avg = 258
 #pragma HLS unroll factor=N_PE
-#pragma HLS PIPELINE II=4
+#pragma HLS PIPELINE II=2
 		data16_t weights[9];
 		data32_t result;
 #pragma HLS ARRAY_PARTITION variable=weights complete dim=0
+#pragma HLS RESOURCE variable=weights core=RAM_S2P_LUTRAM latency=3
+
 		if (clear) {
 			result = data32_t(0);
 		} else {
@@ -63,8 +65,8 @@ void loadInput(dimidx_t h, dimidx_t w, cidx_t ci, widx_t &ci_offset, data8_t in[
 }
 
 void processIC(dimidx_t h, dimidx_t w, cidx_t ci) {
-#pragma HLS DATAFLOW
 #pragma HLS INLINE OFF
+#pragma HLS DATAFLOW
 #pragma HLS FUNCTION_INSTANTIATE variable=ci
 	data8_t in[9];
 #pragma HLS ARRAY_PARTITION variable=in complete dim=0

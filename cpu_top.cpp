@@ -66,6 +66,8 @@ int WeightsCacheInputChannelOffsetTest(kernel_t k) {
             printf("\n");
         }
     }
+
+//    fpga_top(conv_cfg, data32_t(0), Weights);
     return 0;
 }
 
@@ -133,7 +135,7 @@ int InputsCacheTest() {
             for (cidx_t _ic = 0; _ic < ic; _ic++) {
                 InputsCache::fetchInputs(_h, _w, _ic, in);
                 if (!checkInputs(h, w, ic, _h, _w, _ic, in)) {
-                    printf("check input[%d, %d, %d] failed!\n", _h, _w, _ic);
+                    printf("check input[%d, %d, %d] failed!\n", (int)_h, (int)_w, (int)_ic);
                     return 1;
                 }
             }
@@ -236,10 +238,10 @@ int intergrationCosimTest() {
 }
 
 int UnitTest() {
-    if (WeightsCacheTest())
-    	return -1;
-//    if (InputsCacheTest())
+//    if (WeightsCacheTest())
 //    	return -1;
+    if (InputsCacheTest())
+    	return -1;
 //    if (!intergrationCosimTest())
 //    	return -1;
     return 0;

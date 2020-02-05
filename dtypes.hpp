@@ -3,20 +3,12 @@
 
 #include "cfg.hpp"
 
-#ifdef __SYNTHESIS__
-#include <ap_utils.h>
-#include <hls_math.h>
-#endif
-
 #include <ap_int.h>
-
 #include <cassert>
-#include <cmath>
 #include <cstdio>
-#include <cstdlib>
 
 // Index data type define
-typedef ap_uint<4> peidx_t;
+typedef ap_uint<5> peidx_t;
 typedef ap_int<INPUT_IDX_BITS> dimidx_t;
 typedef ap_uint<CHANNEL_IDX_BITS> cidx_t;
 typedef ap_uint<WEIGHTS_OFFSET_BITS> widx_t;
@@ -49,40 +41,38 @@ struct conv_t {
     cidx_t ic, oc;
     kernel_t kernel;
     stride_t stride;
-    bool leaky, bn;
+    bool leaky;
 
     memaddr_t inputs;
-    memaddr_t outputs;
     memaddr_t weights;
+    memaddr_t outputs;
     memaddr_t bias;
     memaddr_t scale;
-
-    widx_t nweights;
 
     conv_t(int h, int w, int ic, int oc, int k, int s = 1,
            bool leaky = false, bool bn = false, unsigned int inputs = 0ul,
            unsigned int outputs = 0ul, unsigned int weights = 0ul,
-           unsigned int bias = 0ul, unsigned int scale = 0ul,
-           widx_t nweights = 0)
+           unsigned int bias = 0ul, unsigned int scale = 0ul)
         : h(h), w(w), ic(ic), oc(oc), kernel(k), stride(s),
-          leaky(leaky), bn(false), inputs(inputs), outputs(outputs),
-          weights(weights), bias(bias), scale(scale), nweights(nweights) {}
+          leaky(leaky), inputs(inputs), outputs(outputs),
+          weights(weights), bias(bias), scale(scale) {}
 
     conv_t()
         : h(0), w(0), ic(0), oc(0), kernel(0), stride(0), leaky(false),
-          bn(false), inputs(0), outputs(0), weights(0), bias(0), scale(0),
-          nweights(0) {}
+          inputs(0), outputs(0), weights(0), bias(0), scale(0) {}
 };
 
-#ifndef __SYNTHESIS__
-template <class T> T reg(T x) {
-#pragma HLS pipeline
-#pragma HLS inline self off
-#pragma HLS interface ap_ctrl_none register port = return
-    return x;
-}
-#endif
-
 #define LOG(...) printf("LOG %s:%d ", __FILE__, __LINE__), printf(__VA_ARGS__)
+
+template<typename T, size_t burst>
+void copy_dram(T *dst, volatile T *src, int n) {
+#pragma HLS INLINE
+	for (int i=0; i<n; i+=burst) {
+		for (int c=0; c<burst; c++) {
+#pragma HLS PIPELINE
+			dst[c] = src[c];
+		}
+	}
+}
 
 #endif

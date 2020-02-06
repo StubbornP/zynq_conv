@@ -12,7 +12,7 @@ const int INPUT_IDX_BITS = 11;
 // 32KB input cache size
 const int INPUT_CACHE_SIZE = 64 * 1024;
 // 4 input cache lines
-const int INPUT_CACHE_LINES = 4;
+const int INPUT_CACHE_LINES = 5;
 
 // 1MB weights cache
 const int WEIGHTS_OFFSET_BITS = 20;

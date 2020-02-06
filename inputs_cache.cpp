@@ -19,7 +19,7 @@ data8_t IBRAM[INPUT_CACHE_SIZE] = {0};
 // load one input channel pixels from DRAM to ICache
 void loadInputChannel(volatile data8_t *SHARED_DRAM) {
 #pragma HLS INLINE
-#pragma HLS RESOURCE variable=IBRAM core=RAM_T2P_BRAM latency=3
+#pragma HLS RESOURCE variable=IBRAM core=RAM_T2P_BRAM latency=1
 #pragma HLS ARRAY_PARTITION variable=IBRAM cyclic factor=N_PE dim=0 //
 	const conv_t &conv_cfg = ConfigBoard::getConv();
 	const cidx_t ic = conv_cfg.ic;
@@ -59,7 +59,6 @@ imidx_t getRowOffset(const dimidx_t h) {
 #pragma HLS INLINE
 	cacheline_t target_line = (h) % INPUT_CACHE_LINES;
 	imidx_t row_offset = target_line * Internal::line_size;
-#pragma HLS RESOURCE variable=row_offset core=MulnS latency=3
 	return row_offset;
 }
 // fetch one pixel from cache
@@ -96,18 +95,16 @@ void fetchInputs(dimidx_t h, dimidx_t w, cidx_t ci, data8_t inputs[9]) {
 	const dimidx_t ih = h - 1;
 	const dimidx_t iw = w - 1;
 	const imidx_t row_base = iw * ic + ci;
-#pragma HLS RESOURCE variable=row_base core=MulnS latency=3
 	imidx_t row_off;
 	for (int j=0; j<3; j++) {
 		dimidx_t hh = ih + j;
 		row_off = row_base + (hh%INPUT_CACHE_LINES) * Internal::line_size;
-#pragma HLS RESOURCE variable=row_off core=MulnS latency=3
 		for (int i=0; i<3; i++) {
 			dimidx_t ww = iw + i;
 			if (hh<0 || ww<0 || hh >= H || ww >= W) {
-				inputs[j*3+i] = data8_t(0);
+				inputs[j * 3 + i] = data8_t(0);
 			} else{
-				inputs[j*3+i] = Internal::IBRAM[row_off];
+				inputs[j * 3 + i] = Internal::IBRAM[row_off];
 			}
 			row_off += ic;
 		}

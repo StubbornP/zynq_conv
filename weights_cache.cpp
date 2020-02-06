@@ -9,7 +9,6 @@ cidx_t align;
 void getBRAMIndex(const cidx_t oc, const widx_t ic_offset,
                   cacheline_idx_t& line, peidx_t &peid, flt_idx & flt_id) {
 #pragma HLS INLINE
-	widx_t temp;
 	if (ConfigBoard::is1x1Conv()) {
 		flt_id = (ic_offset + oc) % 9;
 		line = (ic_offset + oc) / (9 * N_PE);
@@ -39,9 +38,7 @@ void loadWeights(volatile data16_t* SHM16_DRAM) {
 #pragma HLS INLINE
 #pragma HLS ARRAY_PARTITION variable=WBRAM complete dim=2 // peid
 #pragma HLS ARRAY_PARTITION variable=WBRAM complete dim=3 // flt_id
-#pragma HLS RESOURCE variable=WBRAM core=RAM_T2P_BRAM latency=3
-
-#pragma HLS INLINE
+#pragma HLS RESOURCE variable=WBRAM core=RAM_T2P_BRAM latency=1
     const conv_t& conv_cfg = ConfigBoard::getConv();
     const cidx_t ic = conv_cfg.ic;
     const cidx_t oc = conv_cfg.oc;
@@ -86,8 +83,8 @@ void fetch9Weights(widx_t ic_offset, cidx_t oc, data16_t weights[9]) {
 
 L_FETCH_WEIGHTS:
     for (flt_idx i = 0; i < 9; i++) {
+#pragma HLS UNROLL FACTOR=9
     	data16_t temp;
-#pragma HLS UNROLL
     	if(is_1x1) {
     		if (i==4) {
     			temp = Line[flt_id];

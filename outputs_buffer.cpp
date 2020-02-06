@@ -13,18 +13,13 @@ void setup() {
 	WStride = ow * conv_cfg.oc;
 }
 
-void setDRAMAddress(dimidx_t h, dimidx_t w) {
+void setDRAMAddress(dimidx_t oh, dimidx_t ow) {
 #pragma HLS INLINE
 #pragma HLS PIPELINE
 	const conv_t& conv_cfg = ConfigBoard::getConv();
-    dimidx_t oh, ow;
-    oh = h, ow = w;
-	if (ConfigBoard::is3x3S2Conv()) {
-        oh = h / 2, ow = w / 2;
-    }
     // Calculate Output Memory Address
 	memaddr_t px_off = oh * WStride + ow * conv_cfg.oc;
-#pragma HLS RESOURCE variable=px_off core=MulnS latency=2
+//#pragma HLS RESOURCE variable=px_off core=MulnS latency=2
     DRAMAddr = conv_cfg.outputs + px_off;
     LOG("OutputsBuffer: set DRAM address: %x:%x\n", (int)conv_cfg.outputs, (int)DRAMAddr);
 }
@@ -32,7 +27,7 @@ void setDRAMAddress(dimidx_t h, dimidx_t w) {
 data32_t getOutputChannel(cidx_t co) {
 #pragma HLS INLINE
 #pragma HLS ARRAY_PARTITION variable=OBRAM cyclic factor=N_PE
-#pragma HLS RESOURCE variable=OBRAM core=RAM_T2P_BRAM latency=2
+#pragma HLS RESOURCE variable=OBRAM core=RAM_T2P_BRAM latency=1
 	return OBRAM[co];
 }
 void putOutputChannel(cidx_t co, data32_t val) {
@@ -57,8 +52,8 @@ void flushOutputChannel(volatile data8_t* SHARED_DRAM) {
 //    LOG("OutputsBuffer: set DRAM address: %x, co:%d, val: %d\n", (int)DRAMAddr, (int)co, (int)val);
     for (cidx_t co=0; co>conv_oc; co++) {
 #pragma HLS PIPELINE
-#pragma HLS LOOP_TRIPCOUNT min = 8 max = 650 avg = 45
-    	data32_t bram = getOutputChannel(co);
+#pragma HLS LOOP_TRIPCOUNT min = 8 max = 520 avg = 45
+    	data32_t bram = OBRAM[co];
     	Out[co] = PostProcess::postProcess(co, bram);
     }
 }

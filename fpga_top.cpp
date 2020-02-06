@@ -6,10 +6,12 @@
 #include "process_element.hpp"
 #include "weights_cache.hpp"
 
-void fpga_top(conv_t conv, data32_t cmd, volatile data8_t* SHM8_DRAM,
-              volatile data16_t* SHM16_DRAM, volatile data32_t* SHM32_DRAM) {
+void fpga_top(conv_t conv, data32_t cmd,
+		volatile data8_t* SHM8_DRAM,
+		volatile data16_t* SHM16_DRAM,
+		volatile data32_t* SHM32_DRAM) {
 #pragma HLS INTERFACE m_axi depth=DRAM_DEPTH port=SHM8_DRAM offset=0 bundle=data8_bus register  max_read_burst_length=64 num_read_outstanding=32
-#pragma HLS INTERFACE m_axi depth=DRAM_DEPTH port=SHM16_DRAM offset=0 bundle=data16_bus register  max_read_burst_length=64 num_read_outstanding=32
+#pragma HLS INTERFACE m_axi depth=DRAM_DEPTH port=SHM16_DRAM offset=0 bundle=data16_bus register  max_read_burst_length=128 num_read_outstanding=32
 #pragma HLS INTERFACE m_axi depth=DRAM_DEPTH port=SHM32_DRAM offset=0 bundle=data32_bus register  max_read_burst_length=64 num_read_outstanding=32
 
 #pragma HLS INTERFACE s_axilite port = conv bundle = ctrl_bus register
@@ -41,15 +43,18 @@ TOP_H:
         for (w = 0; w < conv_w; w++) {
 #pragma HLS LOOP_TRIPCOUNT min = 8 max = 416 avg = 45
             cidx_t ci, co;
+            dimidx_t oh, ow;
+            oh = h, ow = w;
             if (ConfigBoard::is3x3S2Conv()) {
+                oh = h / 2, ow = w / 2;
                 if (h % 2 | w % 2)
                     continue;
             }
-            OutputsBuffer::setDRAMAddress(h, w);
+            OutputsBuffer::setDRAMAddress(oh, ow);
             InputsCache::loadInputChannel(SHM8_DRAM);
         TOP_CI:
             for (ci = 0; ci < conv_ic; ci++) {
-#pragma HLS LOOP_TRIPCOUNT min = 8 max = 650 avg = 45
+#pragma HLS LOOP_TRIPCOUNT min = 8 max = 520 avg = 45
                 ProcessElement::processIC(h, w, ci);
             }
             OutputsBuffer::flushOutputChannel(SHM8_DRAM);

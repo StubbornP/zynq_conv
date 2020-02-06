@@ -13,44 +13,47 @@ namespace Internal {
 // bn
 // leaky relu
 
+
 void macc(const data8_t in[9], const data16_t weights[9], data32_t &result) {
 #pragma HLS INLINE
 	data32_t res = 0;
-	data32_t out[9];
+	data32_t out[4];
 #pragma HLS ARRAY_PARTITION variable=out complete dim=0
-#pragma HLS RESOURCE variable=out core=MulnS latency=3
-#pragma HLS RESOURCE variable=res core=AddSub_DSP latency=3
-    res = result;
-	for (int i=0; i<9; i++) {
+
+	for (int i=0; i<4; i++) {
 #pragma HLS UNROLL
 		out[i] = in[i] * weights[i];
 	}
-	for (int i=0; i<9; i++) {
+	for (int i=0; i<4; i++) {
 #pragma HLS UNROLL
-#pragma HLS PIPELINE
-		res += out[i];
+		out[i] += in[4+i] * weights[4+i];
 	}
+	res = result + in[8] * weights[8];
+	for (int i=0; i<2; i++) {
+#pragma HLS UNROLL
+		out[i] += out[2+i];
+	}
+	res += out[0] + out[1];
 	result = res;
 }
 
-void processOC(dimidx_t h, dimidx_t w, cidx_t ci_offset, const data8_t in[9], bool clear) {
+void processOC(dimidx_t h, dimidx_t w, cidx_t ci, const data8_t in[9], bool clear) {
 	const conv_t &conv_cfg = ConfigBoard::getConv();
 	const cidx_t oc = conv_cfg.oc;
-#pragma HLS INLINE off
+#pragma HLS INLINE OFF
+    const widx_t ci_offset = ci * oc;
 	for (cidx_t co=0; co<oc; co++) {
-#pragma HLS LOOP_TRIPCOUNT min = 32 max = 560 avg = 258
+#pragma HLS LOOP_TRIPCOUNT min = 32 max = 520 avg = 150
 #pragma HLS unroll factor=N_PE
 #pragma HLS PIPELINE II=2
-		data16_t weights[9];
 		data32_t result;
-#pragma HLS ARRAY_PARTITION variable=weights complete dim=0
-#pragma HLS RESOURCE variable=weights core=RAM_S2P_LUTRAM latency=3
-
 		if (clear) {
 			result = data32_t(0);
 		} else {
 			result = OutputsBuffer::getOutputChannel(co);
 		}
+		data16_t weights[9];
+#pragma HLS ARRAY_PARTITION variable=weights complete dim=0
 		WeightsCache::fetch9Weights(ci_offset, co, weights);
 		macc(in, weights, result);
 		OutputsBuffer::putOutputChannel(co, result);
@@ -58,21 +61,14 @@ void processOC(dimidx_t h, dimidx_t w, cidx_t ci_offset, const data8_t in[9], bo
 }
 }; // namespace Internal
 
-void loadInput(dimidx_t h, dimidx_t w, cidx_t ci, widx_t &ci_offset, data8_t in[9]) {
-#pragma HLS INLINE OFF
-	InputsCache::fetchInputs(h, w, ci, in);
-	ci_offset = WeightsCache::getInputChannelOffset(ci);
-}
-
 void processIC(dimidx_t h, dimidx_t w, cidx_t ci) {
-#pragma HLS INLINE OFF
+#pragma HLS INLINE
 #pragma HLS DATAFLOW
 #pragma HLS FUNCTION_INSTANTIATE variable=ci
 	data8_t in[9];
 #pragma HLS ARRAY_PARTITION variable=in complete dim=0
-	widx_t ci_offset;
-	loadInput(h, w, ci, ci_offset, in);
-	Internal::processOC(h, w, ci_offset, in, ci==0);
+	InputsCache::fetchInputs(h, w, ci, in);
+	Internal::processOC(h, w, ci, in, ci==0);
 }
 };
 

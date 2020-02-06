@@ -42,7 +42,7 @@ data8_t postProcess(cidx_t co, data32_t out) {
 	bias = BIAS[co];
 
 	temp = (temp + bias) / scale;
-#pragma HLS RESOURCE variable=temp core=MulnS latency=3
+//#pragma HLS RESOURCE variable=temp core=MulnS latency=3
 	ret = data8_t(temp);
 	return ret;
 }

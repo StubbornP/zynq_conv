@@ -12,12 +12,13 @@ void getBRAMIndex(const cidx_t oc, const widx_t ic_offset,
 	widx_t temp;
 	if (ConfigBoard::is1x1Conv()) {
 		flt_id = (ic_offset + oc) % 9;
-		temp = (ic_offset + oc) / 9;
+		line = (ic_offset + oc) / (9 * N_PE);
+		peid = ((ic_offset + oc) / 9) % N_PE;
 	} else {
-		temp = (ic_offset + oc);
+		line = (ic_offset+oc) / N_PE;
+		peid = (ic_offset+oc) % N_PE;
 	}
-	line = temp / N_PE;
-	peid = temp % N_PE;
+
 	LOG("WCache: get BRAM Index,  oc: %d, ic_offset: %d, line: "
         "%d, peid: %d, flt_idx: %d\n", (int)oc, (int)ic_offset, (int)line, (int)peid, (int)flt_id);
 }
@@ -76,18 +77,28 @@ void fetch9Weights(widx_t ic_offset, cidx_t oc, data16_t weights[9]) {
     peidx_t peid;
     flt_idx flt_id(0);
     cacheline_idx_t line;
-    bool is_1x1 = ConfigBoard::is1x1Conv();
 
     getBRAMIndex(oc, ic_offset, line, peid, flt_id);
     data16_t *Line = WBRAM[line][peid];
 
+    bool is_1x1 = ConfigBoard::is1x1Conv();
     assert((is_1x1 | flt_id==0) || "flt_idx should be zero");
 
 L_FETCH_WEIGHTS:
     for (flt_idx i = 0; i < 9; i++) {
+    	data16_t temp;
 #pragma HLS UNROLL
-    	weights[i] = (is_1x1 && flt_id != i)?data16_t(0): Line[i];
-    	LOG("line: %d, offset: %d: %d\n", (int)line, (int)i, (short)weights[i]);
+    	if(is_1x1) {
+    		if (i==4) {
+    			temp = Line[flt_id];
+    		} else {
+    			temp = data16_t(0);
+    		}
+    	} else {
+    		 temp = Line[i];
+    	}
+    	weights[i] = temp;
+    	LOG("line: %d, offset: %d: %d\n", (int)line, (int)i, (short)temp);
     }
 }
 

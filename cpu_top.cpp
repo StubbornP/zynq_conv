@@ -149,6 +149,7 @@ bool checkConvResult(conv_t conv_cfg, data8_t *inputs,
 	dimidx_t H = conv_cfg.h, W = conv_cfg.w;
 	cidx_t IC = conv_cfg.ic, OC = conv_cfg.oc;
 	kernel_t K = conv_cfg.kernel;
+    dimidx_t pad = (K==1)?0:1;
 
 	for (dimidx_t oh=0; oh<H; oh++)
 	for (dimidx_t ow=0; ow<W; ow++)
@@ -160,11 +161,11 @@ bool checkConvResult(conv_t conv_cfg, data8_t *inputs,
             res = Out[idx];
 		}
 		for (dimidx_t ic=0; ic<conv_cfg.ic; ic++) {
-			for (dimidx_t fh=0; fh<3; fh++)
-			for (dimidx_t fw=0; fw<3; fw++) {
+			for (dimidx_t fh=0; fh<K; fh++)
+			for (dimidx_t fw=0; fw<K; fw++) {
 				data8_t d;
 				data16_t w;
-				dimidx_t ih = oh + fh - 1, iw = ow + fw - 1;
+				dimidx_t ih = oh + fh - pad , iw = ow + fw - pad;
 
 				{
 	                int idx = ((ic * OC + oc) * K + fh) * K + fw;
@@ -184,7 +185,7 @@ bool checkConvResult(conv_t conv_cfg, data8_t *inputs,
 		scale = Post[oc];
 		bias = Post[OC+oc];
 		ref = (ref + bias) / scale;
-
+		LOG("checking conv result: %d, %d\n", (int)res, (int)data8_t(ref));
 		if (res != data8_t(ref)) {
 			return false;
 		}
@@ -197,6 +198,7 @@ int intergrationCosimTest() {
     const dimidx_t h = 32, w = 32;
     const cidx_t ic = 16, oc = 16;
     conv_t conv_cfg;
+    dimidx_t pad = (k==1)?0:1;
 
     conv_cfg.h = h;
     conv_cfg.w = w;
@@ -211,6 +213,7 @@ int intergrationCosimTest() {
     conv_cfg.outputs = 1024 * 1024 * 8;
     conv_cfg.scale = 0;
     conv_cfg.bias = 0;
+    conv_cfg.leaky = false;
 
     ConfigBoard::setConv(conv_cfg);
 
@@ -231,7 +234,7 @@ int intergrationCosimTest() {
     	Post[_oc] = data32_t(1);
     	Post[oc+_oc] = data32_t(1);
     }
-//    fpga_top(conv_cfg, data32_t(0), Inputs, Weights, Post);
+    fpga_top(conv_cfg, data32_t(0), Inputs, Weights, Post);
     // outputs
     data8_t *out = &Inputs[8* 1024 * 1024];
     return checkConvResult(conv_cfg, Inputs, Weights, Post, out);
@@ -240,10 +243,10 @@ int intergrationCosimTest() {
 int UnitTest() {
 //    if (WeightsCacheTest())
 //    	return -1;
-    if (InputsCacheTest())
-    	return -1;
-//    if (!intergrationCosimTest())
+//    if (InputsCacheTest())
 //    	return -1;
+    if (!intergrationCosimTest())
+    	return -1;
     return 0;
 }
 

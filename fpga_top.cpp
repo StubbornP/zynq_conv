@@ -40,39 +40,19 @@ TOP_H:
     TOP_W:
         for (w = 0; w < conv_w; w++) {
 #pragma HLS LOOP_TRIPCOUNT min = 8 max = 416 avg = 45
-
             cidx_t ci, co;
-            dimidx_t oh, ow;
-
-            oh = h, ow = w;
-
-            if (ConfigBoard::is1x1Conv())
-                continue;
-
             if (ConfigBoard::is3x3S2Conv()) {
-                oh = h / 2, ow = w / 2;
                 if (h % 2 | w % 2)
                     continue;
             }
-
-            OutputsBuffer::setDRAMAddress(oh, ow);
-
+            OutputsBuffer::setDRAMAddress(h, w);
             InputsCache::loadInputChannel(SHM8_DRAM);
         TOP_CI:
             for (ci = 0; ci < conv_ic; ci++) {
 #pragma HLS LOOP_TRIPCOUNT min = 8 max = 650 avg = 45
                 ProcessElement::processIC(h, w, ci);
             }
-
-            for (co = 0; co < conv_oc; co++) {
-#pragma HLS LOOP_TRIPCOUNT min = 8 max = 650 avg = 45
-#pragma HLS pipeline II = 1
-                data32_t res = OutputsBuffer::getOutputChannel(co);
-                data8_t out = PostProcess::postProcess(co, res);
-                OutputsBuffer::flushOutputChannel(SHM8_DRAM, co, out);
-                LOG("writing back Out[%d, %d, %d] res: %d, out: %d\n", (int)h,
-                    (int)w, (int)co, (int)res, (int)out);
-            }
+            OutputsBuffer::flushOutputChannel(SHM8_DRAM);
         }
     }
 }

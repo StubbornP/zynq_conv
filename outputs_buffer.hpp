@@ -10,7 +10,7 @@ void setDRAMAddress(dimidx_t h, dimidx_t w);
 data32_t getOutputChannel(cidx_t co);
 void putOutputChannel(cidx_t co, data32_t val);
 void accOutputChannel(cidx_t co, data32_t val);
-void flushOutputChannel(volatile data8_t* SHARED_DRAM, cidx_t co, data8_t val);
+void flushOutputChannel(volatile data8_t* SHARED_DRAM);
 }; // namespace OutputBuffer
 
 #endif

@@ -149,7 +149,6 @@ bool checkConvResult(conv_t conv_cfg, data8_t *inputs,
 	dimidx_t H = conv_cfg.h, W = conv_cfg.w;
 	cidx_t IC = conv_cfg.ic, OC = conv_cfg.oc;
 	kernel_t K = conv_cfg.kernel;
-    dimidx_t pad = (K==1)?0:1;
 
 	for (dimidx_t oh=0; oh<H; oh++)
 	for (dimidx_t ow=0; ow<W; ow++)
@@ -165,7 +164,7 @@ bool checkConvResult(conv_t conv_cfg, data8_t *inputs,
 			for (dimidx_t fw=0; fw<K; fw++) {
 				data8_t d;
 				data16_t w;
-				dimidx_t ih = oh + fh - pad , iw = ow + fw - pad;
+				dimidx_t ih = oh + fh - 1 , iw = ow + fw - 1;
 
 				{
 	                int idx = ((ic * OC + oc) * K + fh) * K + fw;

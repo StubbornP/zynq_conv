@@ -28,8 +28,11 @@ void loadInputChannel(volatile data8_t *SHARED_DRAM) {
 	data8_t *dst = &IBRAM[cache_offset];
 	volatile data8_t *src = &SHARED_DRAM[dram_offset];
 	copy_dram<data8_t, 32>(dst, src, ic);
-	cache_offset=(cache_offset+ic) % cache_size;
+	cache_offset += ic;
 	dram_offset+=ic;
+	if (cache_offset >= cache_size) {
+		cache_offset = 0;
+	}
 }
 }; // namespace Internal
 // reset cache and DRAM address
@@ -57,7 +60,7 @@ ICACHE_LOAD_W:
 // get cache row base address
 imidx_t getRowOffset(const dimidx_t h) {
 #pragma HLS INLINE
-	cacheline_t target_line = (h) % INPUT_CACHE_LINES;
+	cacheline_t target_line = h & INPUT_CACHE_LINES_MASK;
 	imidx_t row_offset = target_line * Internal::line_size;
 	return row_offset;
 }
@@ -98,7 +101,7 @@ void fetchInputs(dimidx_t h, dimidx_t w, cidx_t ci, data8_t inputs[9]) {
 	imidx_t row_off;
 	for (int j=0; j<3; j++) {
 		dimidx_t hh = ih + j;
-		row_off = row_base + (hh%INPUT_CACHE_LINES) * Internal::line_size;
+		row_off = row_base + (hh&INPUT_CACHE_LINES_MASK) * Internal::line_size;
 		for (int i=0; i<3; i++) {
 			dimidx_t ww = iw + i;
 			if (hh<0 || ww<0 || hh >= H || ww >= W) {

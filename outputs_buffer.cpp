@@ -50,7 +50,7 @@ void flushOutputChannel(volatile data8_t* SHARED_DRAM) {
     const cidx_t conv_oc = conv_cfg.oc;
     volatile data8_t *Out = &SHARED_DRAM[DRAMAddr];
 //    LOG("OutputsBuffer: set DRAM address: %x, co:%d, val: %d\n", (int)DRAMAddr, (int)co, (int)val);
-    for (cidx_t co=0; co>conv_oc; co++) {
+    for (cidx_t co=0; co<conv_oc; co++) {
 #pragma HLS PIPELINE
 #pragma HLS LOOP_TRIPCOUNT min = 8 max = 520 avg = 45
     	data32_t bram = OBRAM[co];

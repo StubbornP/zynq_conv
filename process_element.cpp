@@ -42,19 +42,19 @@ void processOC(dimidx_t h, dimidx_t w, cidx_t ci, const data8_t in[9], bool clea
 	const cidx_t oc = conv_cfg.oc;
 #pragma HLS INLINE OFF
     const widx_t ci_offset = ci * oc;
+L_PROCESS_OC:
 	for (cidx_t co=0; co<oc; co++) {
 #pragma HLS LOOP_TRIPCOUNT min = 32 max = 520 avg = 150
 #pragma HLS unroll factor=N_PE
 #pragma HLS PIPELINE II=2
-		data32_t result;
-		if (clear) {
-			result = data32_t(0);
-		} else {
-			result = OutputsBuffer::getOutputChannel(co);
-		}
+
+		data32_t result(0);
 		data16_t weights[9];
 #pragma HLS ARRAY_PARTITION variable=weights complete dim=0
 		WeightsCache::fetch9Weights(ci_offset, co, weights);
+		if (!clear) {
+			result += OutputsBuffer::getOutputChannel(co);
+		}
 		macc(in, weights, result);
 		OutputsBuffer::putOutputChannel(co, result);
 	}

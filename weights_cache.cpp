@@ -9,15 +9,14 @@ cidx_t align;
 void getBRAMIndex(const cidx_t oc, const widx_t ic_offset,
                   cacheline_idx_t& line, peidx_t &peid, flt_idx & flt_id) {
 #pragma HLS INLINE
+	widx_t offset = ic_offset + oc;
 	if (ConfigBoard::is1x1Conv()) {
-		flt_id = (ic_offset + oc) % 9;
-		line = (ic_offset + oc) / (9 * N_PE);
-		peid = ((ic_offset + oc) / 9) % N_PE;
-	} else {
-		line = (ic_offset+oc) / N_PE;
-		peid = (ic_offset+oc) % N_PE;
+		widx_t temp = offset / 9;
+		flt_id = offset - temp * 9;
+		offset = temp;
 	}
-
+	line = offset / N_PE;
+	peid = offset - line * N_PE;
 	LOG("WCache: get BRAM Index,  oc: %d, ic_offset: %d, line: "
         "%d, peid: %d, flt_idx: %d\n", (int)oc, (int)ic_offset, (int)line, (int)peid, (int)flt_id);
 }
@@ -59,7 +58,8 @@ void loadWeights(volatile data16_t* SHM16_DRAM) {
         volatile data16_t *BASE = &SHM16_DRAM[offset];
         for(widx_t c=0; c<burst; c++) {
 #pragma HLS PIPELINE
-        	WBRAM[line][c/9][c%9] = BASE[c];
+        	cidx_t cd9 = c/9;
+        	WBRAM[line][cd9][c-cd9*9] = BASE[c];
         }
         ch+=ch_step;
         offset+=burst;
@@ -84,15 +84,11 @@ void fetch9Weights(widx_t ic_offset, cidx_t oc, data16_t weights[9]) {
 L_FETCH_WEIGHTS:
     for (flt_idx i = 0; i < 9; i++) {
 #pragma HLS UNROLL FACTOR=9
-    	data16_t temp;
-    	if(is_1x1) {
-    		if (i==4) {
-    			temp = Line[flt_id];
-    		} else {
-    			temp = data16_t(0);
-    		}
+    	data16_t temp(0);
+    	if(is_1x1 && i==4) {
+			temp = Line[flt_id];
     	} else {
-    		 temp = Line[i];
+    		temp = Line[i];
     	}
     	weights[i] = temp;
     	LOG("line: %d, offset: %d: %d\n", (int)line, (int)i, (short)temp);

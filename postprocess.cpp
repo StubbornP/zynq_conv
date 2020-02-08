@@ -30,20 +30,20 @@ data8_t postProcess(cidx_t co, data32_t out) {
 #pragma HLS PIPELINE
 	const conv_t &conv_cfg = ConfigBoard::getConv();
 	data8_t ret;
-	data32_t temp, scale, bias;
+	data32_t act, scale, bias, quant;
 
 	if (conv_cfg.leaky && out < 0) {
-		temp = out / 10;
+		act = out / 10;
 	} else {
-		temp = out;
+		act = out;
 	}
 
 	scale = SCALE[co];
 	bias = BIAS[co];
 
-	temp = (temp + bias) / scale;
-//#pragma HLS RESOURCE variable=temp core=MulnS latency=3
-	ret = data8_t(temp);
+	quant = (act + bias) / scale;
+#pragma HLS RESOURCE variable=quant core=MulnS latency=3
+	ret = data8_t(quant);
 	return ret;
 }
 };

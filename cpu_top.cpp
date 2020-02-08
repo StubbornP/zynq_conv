@@ -30,8 +30,7 @@ int WeightsCacheInputChannelOffsetTest(kernel_t k) {
                     int idx = ((_ic * oc + _oc) * k + _h) * k + _w;
                     Weights[idx] = data16_t(idx % 255);
                 }
-
-    widx_t idx = WeightsCache::getInputChannelOffset(ic);
+    widx_t idx = ic * WeightsCache::align;
 
     if (idx == ic * oc) {
         printf("correct weights channel offset\n"), 0;
@@ -42,7 +41,7 @@ int WeightsCacheInputChannelOffsetTest(kernel_t k) {
     WeightsCache::loadWeights(Weights);
 
     for (cidx_t _ic = 0; _ic < ic; _ic++) {
-        widx_t ci_off = WeightsCache::getInputChannelOffset(_ic);
+        widx_t ci_off = _ic * WeightsCache::align;
         for (cidx_t _oc = 0; _oc < oc; _oc++) {
             data16_t weights[9];
             WeightsCache::fetch9Weights(ci_off, _oc, weights);
@@ -164,7 +163,7 @@ bool checkConvResult(conv_t conv_cfg, data8_t *inputs,
 			for (dimidx_t fw=0; fw<K; fw++) {
 				data8_t d;
 				data16_t w;
-				dimidx_t ih = oh + fh - 1 , iw = ow + fw - 1;
+				dimidx_t ih = oh + fh , iw = ow + fw;
 
 				{
 	                int idx = ((ic * OC + oc) * K + fh) * K + fw;
@@ -193,11 +192,10 @@ bool checkConvResult(conv_t conv_cfg, data8_t *inputs,
 }
 
 int intergrationCosimTest() {
-	const kernel_t k = 3;
+	const kernel_t k = 1;
     const dimidx_t h = 32, w = 32;
     const cidx_t ic = 16, oc = 16;
     conv_t conv_cfg;
-    dimidx_t pad = (k==1)?0:1;
 
     conv_cfg.h = h;
     conv_cfg.w = w;
@@ -240,10 +238,10 @@ int intergrationCosimTest() {
 }
 
 int UnitTest() {
-//    if (WeightsCacheTest())
-//    	return -1;
-//    if (InputsCacheTest())
-//    	return -1;
+    if (WeightsCacheTest())
+    	return -1;
+    if (InputsCacheTest())
+    	return -1;
     if (!intergrationCosimTest())
     	return -1;
     return 0;

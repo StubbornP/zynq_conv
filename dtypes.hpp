@@ -7,6 +7,13 @@
 #include <cassert>
 #include <cstdio>
 
+template <class T>  T reg(T x) {
+#pragma HLS pipeline
+#pragma HLS inline self off
+#pragma HLS interface ap_ctrl_none register port=return
+	return x;
+}
+
 // Index data type define
 typedef ap_uint<5> peidx_t;
 typedef ap_int<INPUT_IDX_BITS> dimidx_t;

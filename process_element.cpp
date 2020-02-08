@@ -41,13 +41,12 @@ void processOC(dimidx_t h, dimidx_t w, cidx_t ci, const data8_t in[9], bool clea
 	const conv_t &conv_cfg = ConfigBoard::getConv();
 	const cidx_t oc = conv_cfg.oc;
 #pragma HLS INLINE OFF
-    const widx_t ci_offset = ci * oc;
+    const widx_t ci_offset = ci * WeightsCache::align;
 L_PROCESS_OC:
 	for (cidx_t co=0; co<oc; co++) {
 #pragma HLS LOOP_TRIPCOUNT min = 32 max = 520 avg = 150
-#pragma HLS unroll factor=N_PE
-#pragma HLS PIPELINE II=2
-
+#pragma HLS UNROLL factor=N_PE
+#pragma HLS PIPELINE II=1
 		data32_t result(0);
 		data16_t weights[9];
 #pragma HLS ARRAY_PARTITION variable=weights complete dim=0

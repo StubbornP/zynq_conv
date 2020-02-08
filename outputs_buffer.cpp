@@ -54,7 +54,9 @@ void flushOutputChannel(volatile data8_t* SHARED_DRAM) {
 #pragma HLS PIPELINE
 #pragma HLS LOOP_TRIPCOUNT min = 8 max = 520 avg = 45
     	data32_t bram = OBRAM[co];
-    	Out[co] = PostProcess::postProcess(co, bram);
+     	Out[co] = PostProcess::postProcess(co, bram);
+    	LOG("OutputsBuffer: set DRAM address: %x, co:%d, val: %d\n", (int)DRAMAddr, (int)co, (int)bram);
+
     }
 }
 }; // namespace OutputsBuffer

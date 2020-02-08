@@ -19,6 +19,7 @@ data8_t IBRAM[INPUT_CACHE_SIZE] = {0};
 // load one input channel pixels from DRAM to ICache
 void loadInputChannel(volatile data8_t *SHARED_DRAM) {
 #pragma HLS INLINE
+#pragma HLS PIPELINE
 #pragma HLS RESOURCE variable=IBRAM core=RAM_T2P_BRAM latency=1
 #pragma HLS ARRAY_PARTITION variable=IBRAM cyclic factor=N_PE dim=0 //
 	const conv_t &conv_cfg = ConfigBoard::getConv();

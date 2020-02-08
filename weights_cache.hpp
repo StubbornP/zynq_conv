@@ -3,6 +3,7 @@
 #include "dtypes.hpp"
 
 namespace WeightsCache {
+extern cidx_t align;
 // calculate input channel offset
 widx_t getInputChannelOffset(const cidx_t ic);
 // load weights to BRAM

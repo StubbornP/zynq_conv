@@ -28,7 +28,6 @@ void fpga_top(conv_t conv, data32_t cmd,
 
     InputsCache::loadRow(SHM8_DRAM);          // preload 2 pixels, 1 pad
     InputsCache::loadInputChannel(SHM8_DRAM); // 1 pixel per width
-
     const dimidx_t conv_h = conv_cfg.h;
     const dimidx_t conv_w = conv_cfg.w;
     const cidx_t conv_ic = conv_cfg.ic;
@@ -50,8 +49,10 @@ TOP_H:
                 if (h % 2 | w % 2)
                     continue;
             }
+
             OutputsBuffer::setDRAMAddress(oh, ow);
             InputsCache::loadInputChannel(SHM8_DRAM);
+
         TOP_CI:
             for (ci = 0; ci < conv_ic; ci++) {
 #pragma HLS LOOP_TRIPCOUNT min = 8 max = 520 avg = 45
@@ -73,7 +74,5 @@ TOP_H:
 //    ConfigBoard::setConv(conv);
 //    const conv_t& conv_cfg = ConfigBoard::getConv();
 //    WeightsCache::weightsCacheTest(conv_cfg, SHM16_DRAM, cmd);
-//    	InputsCache::inputsCacheTest(conv, SHARED_DRAM, cmd);
+////    	InputsCache::inputsCacheTest(conv, SHARED_DRAM, cmd);
 //}
-//
-//

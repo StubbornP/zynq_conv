@@ -9,6 +9,10 @@ data16_t WBRAM[1024][9][N_PE];
 void getBRAMIndex(const cidx_t oc, const widx_t ic_offset,
                   cacheline_idx_t& line, peidx_t& peid, flt_idx& flt_id) {
 #pragma HLS INLINE
+#pragma HLS ARRAY_PARTITION variable = WBRAM complete dim = 2 // peid
+#pragma HLS ARRAY_PARTITION variable = WBRAM complete dim = 3 // flt_id
+#pragma HLS RESOURCE variable = WBRAM core = RAM_T2P_BRAM latency = 1
+
     peid = oc % N_PE;
     if (ConfigBoard::is1x1Conv()) {
         flt_id = ((ic_offset + oc) / N_PE) % 8;
@@ -23,9 +27,6 @@ void getBRAMIndex(const cidx_t oc, const widx_t ic_offset,
 // load layer weights from DRAM
 void loadWeights(volatile data16_t* SHM16_DRAM) {
 #pragma HLS INLINE
-#pragma HLS ARRAY_PARTITION variable = WBRAM complete dim = 2 // peid
-#pragma HLS ARRAY_PARTITION variable = WBRAM complete dim = 3 // flt_id
-#pragma HLS RESOURCE variable = WBRAM core = RAM_T2P_BRAM latency = 1
     const conv_t conv_cfg = ConfigBoard::getConv();
     const cidx_t ic = conv_cfg.ic;
     const cidx_t oc = conv_cfg.oc;
@@ -99,7 +100,6 @@ WCACHE_LOAD:
     //        offset+=burst;
     //    }
 }
-
 void fetch9Weights(widx_t ic_offset, cidx_t oc, data16_t weights[9]) {
 #pragma HLS INLINE
 #pragma HLS FUNCTION_INSTANTIATE variable = oc

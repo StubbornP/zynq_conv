@@ -9,38 +9,28 @@
 
 namespace ProcessElement {
 namespace Internal {
-// requant
-// bn
-// leaky relu
-
 
 void macc(const data8_t in[9], const data16_t weights[9], data32_t &result) {
 #pragma HLS INLINE
-	data32_t res = 0;
-	data32_t out[4];
+	data32_t res;
+	data32_t out[9];
 #pragma HLS ARRAY_PARTITION variable=out complete dim=0
-
-	for (int i=0; i<4; i++) {
+	res = result;
+	for (int i=0; i<9; i++) {
 #pragma HLS UNROLL
 		out[i] = in[i] * weights[i];
 	}
-	for (int i=0; i<4; i++) {
+	for (int i=0; i<9; i++) {
 #pragma HLS UNROLL
-		out[i] += in[4+i] * weights[4+i];
+		res += in[i] * weights[i];
 	}
-	res = result + in[8] * weights[8];
-	for (int i=0; i<2; i++) {
-#pragma HLS UNROLL
-		out[i] += out[2+i];
-	}
-	res += out[0] + out[1];
 	result = res;
 }
 
 void processOC(dimidx_t h, dimidx_t w, cidx_t ci, const data8_t in[9], bool clear) {
 	const conv_t &conv_cfg = ConfigBoard::getConv();
 	const cidx_t oc = conv_cfg.oc;
-#pragma HLS INLINE OFF
+#pragma HLS INLINE
     const widx_t ci_offset = ci * WeightsCache::align;
 L_PROCESS_OC:
 	for (cidx_t co=0; co<oc; co++) {
@@ -62,7 +52,8 @@ L_PROCESS_OC:
 
 void processIC(dimidx_t h, dimidx_t w, cidx_t ci) {
 #pragma HLS INLINE
-#pragma HLS DATAFLOW
+//#pragma HLS DATAFLOW
+#pragma HLS PIPELINE
 #pragma HLS FUNCTION_INSTANTIATE variable=ci
 	data8_t in[9];
 #pragma HLS ARRAY_PARTITION variable=in complete dim=0

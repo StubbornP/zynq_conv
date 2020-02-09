@@ -26,7 +26,7 @@ void loadWeights(volatile data16_t* SHM16_DRAM) {
 #pragma HLS ARRAY_PARTITION variable = WBRAM complete dim = 2 // peid
 #pragma HLS ARRAY_PARTITION variable = WBRAM complete dim = 3 // flt_id
 #pragma HLS RESOURCE variable = WBRAM core = RAM_T2P_BRAM latency = 1
-    const conv_t& conv_cfg = ConfigBoard::getConv();
+    const conv_t conv_cfg = ConfigBoard::getConv();
     const cidx_t ic = conv_cfg.ic;
     const cidx_t oc = conv_cfg.oc;
     const kernel_t kernel = conv_cfg.kernel;

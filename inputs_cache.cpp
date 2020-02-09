@@ -22,7 +22,7 @@ void loadInputChannel(volatile data8_t* SHARED_DRAM) {
 #pragma HLS PIPELINE
 #pragma HLS RESOURCE variable = IBRAM core = RAM_T2P_BRAM latency = 1
 #pragma HLS ARRAY_PARTITION variable = IBRAM cyclic factor = N_PE dim = 0 //
-    const conv_t& conv_cfg = ConfigBoard::getConv();
+    const conv_t conv_cfg = ConfigBoard::getConv();
     const cidx_t ic = conv_cfg.ic;
     LOG("ICache: load input channel from DRAM, (%d pixels)\n",
         (int)conv_cfg.ic);
@@ -39,7 +39,7 @@ void loadInputChannel(volatile data8_t* SHARED_DRAM) {
 // reset cache and DRAM address
 void reset() {
 #pragma HLS INLINE
-    const conv_t& conv_cfg = ConfigBoard::getConv();
+    const conv_t conv_cfg = ConfigBoard::getConv();
     Internal::line = 0;
     Internal::line_size = conv_cfg.w * conv_cfg.ic;
     Internal::cache_offset = 0;
@@ -49,7 +49,7 @@ void reset() {
 // load one widths pixels from DRAM to ICache
 void loadRow(volatile data8_t* SHARED_DRAM) {
 #pragma HLS INLINE
-    const conv_t& conv_cfg = ConfigBoard::getConv();
+    const conv_t conv_cfg = ConfigBoard::getConv();
     const dimidx_t conv_w = conv_cfg.w;
     LOG("ICache: load input row, width: %d, channels: %d\n", (int)conv_cfg.w,
         (int)(conv_cfg.ic));
@@ -70,7 +70,7 @@ imidx_t getRowOffset(const dimidx_t h) {
 data8_t fetchCachePixel(const dimidx_t h, const dimidx_t w,
                         const imidx_t row_offset) {
 #pragma HLS INLINE
-    const conv_t& conv_cfg = ConfigBoard::getConv();
+    const conv_t conv_cfg = ConfigBoard::getConv();
     const cidx_t ic = conv_cfg.ic;
     const dimidx_t ih = conv_cfg.h, iw = conv_cfg.w;
     data8_t ret;

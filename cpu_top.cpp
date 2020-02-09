@@ -231,7 +231,7 @@ int intergrationCosimTest() {
     	Post[_oc] = data32_t(1);
     	Post[oc+_oc] = data32_t(1);
     }
-    fpga_top(conv_cfg, data32_t(0), Inputs, Weights, Post);
+//    fpga_top(conv_cfg, data32_t(0), Inputs, Weights, Post);
     // outputs
     data8_t *out = &Inputs[8* 1024 * 1024];
     return checkConvResult(conv_cfg, Inputs, Weights, Post, out);
@@ -240,10 +240,10 @@ int intergrationCosimTest() {
 int UnitTest() {
     if (WeightsCacheTest())
     	return -1;
-    if (InputsCacheTest())
-    	return -1;
-    if (!intergrationCosimTest())
-    	return -1;
+//    if (InputsCacheTest())
+//    	return -1;
+//    if (!intergrationCosimTest())
+//    	return -1;
     return 0;
 }
 

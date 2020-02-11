@@ -22,16 +22,19 @@ void macc(const data8_t in[9], const data16_t weights[9], data32_t &result) {
 	}
 	for (int i=0; i<9; i++) {
 #pragma HLS UNROLL
-		res += in[i] * weights[i];
+		res += out[i];
 	}
 	result = res;
 }
 
-void processOC(dimidx_t h, dimidx_t w, cidx_t ci, const data8_t in[9], bool clear) {
+void processOC(cidx_t ci, data8_t inputs[9]) {
+#pragma HLS INLINE
+#pragma HLS FUNCTION_INSTANTIATE variable=ci
 	const conv_t &conv_cfg = ConfigBoard::getConv();
 	const cidx_t oc = conv_cfg.oc;
-#pragma HLS INLINE
     const widx_t ci_offset = ci * WeightsCache::align;
+    const bool clear = (ci==0);
+
 L_PROCESS_OC:
 	for (cidx_t co=0; co<oc; co++) {
 #pragma HLS LOOP_TRIPCOUNT min = 32 max = 520 avg = 150
@@ -42,23 +45,31 @@ L_PROCESS_OC:
 #pragma HLS ARRAY_PARTITION variable=weights complete dim=0
 		WeightsCache::fetch9Weights(ci_offset, co, weights);
 		if (!clear) {
-			result += OutputsBuffer::getOutputChannel(co);
+			result = OutputsBuffer::getOutputChannel(co);
 		}
-		macc(in, weights, result);
+		macc(inputs, weights, result);
 		OutputsBuffer::putOutputChannel(co, result);
 	}
 }
 }; // namespace Internal
 
-void processIC(dimidx_t h, dimidx_t w, cidx_t ci) {
+void processIC(dimidx_t h, dimidx_t w) {
 #pragma HLS INLINE
-//#pragma HLS DATAFLOW
 #pragma HLS PIPELINE
-#pragma HLS FUNCTION_INSTANTIATE variable=ci
-	data8_t in[9];
-#pragma HLS ARRAY_PARTITION variable=in complete dim=0
-	InputsCache::fetchInputs(h, w, ci, in);
-	Internal::processOC(h, w, ci, in, ci==0);
+    const conv_t& conv_cfg = ConfigBoard::getConv();
+    const cidx_t conv_ic = conv_cfg.ic;
+    InputsCache::Index idx[9];
+    InputsCache::get9Index(h, w, idx);
+#pragma HLS ARRAY_PARTITION variable=idx complete dim=0
+
+TOP_CI:
+    for (cidx_t ci = 0; ci < conv_ic; ci++) {
+#pragma HLS LOOP_TRIPCOUNT min = 8 max = 520 avg = 45
+        data8_t inputs[9];
+#pragma HLS ARRAY_PARTITION variable=inputs complete dim=0
+    	InputsCache::fetchInputs(ci, idx, inputs);
+    	Internal::processOC(ci, inputs);
+    }
 }
 };
 

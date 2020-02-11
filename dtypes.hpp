@@ -6,6 +6,9 @@
 #include <ap_int.h>
 #include <cassert>
 #include <cstdio>
+#include <hls_stream.h>
+
+using hls::stream;
 
 template <class T>  T reg(T x) {
 #pragma HLS pipeline
@@ -49,24 +52,26 @@ struct conv_t {
     kernel_t kernel;
     stride_t stride;
     bool leaky;
-
+    bool reuse_weights;
     memaddr_t inputs;
     memaddr_t weights;
     memaddr_t outputs;
     memaddr_t bias;
     memaddr_t scale;
 
-    conv_t(int h, int w, int ic, int oc, int k, int s = 1,
-           bool leaky = false, bool bn = false, unsigned int inputs = 0ul,
-           unsigned int outputs = 0ul, unsigned int weights = 0ul,
+    conv_t(int h, int w, int ic, int oc, int k, int s = 1, bool leaky = false,
+		   unsigned int inputs = 0ul, unsigned int weights = 0ul, unsigned int outputs = 0ul,
            unsigned int bias = 0ul, unsigned int scale = 0ul)
-        : h(h), w(w), ic(ic), oc(oc), kernel(k), stride(s),
-          leaky(leaky), inputs(inputs), outputs(outputs),
-          weights(weights), bias(bias), scale(scale) {}
+        : h(h), w(w), ic(ic), oc(oc),
+		  kernel(k), stride(s), leaky(leaky),
+		  inputs(inputs), weights(weights), outputs(outputs),
+		  bias(bias), scale(scale) {}
 
     conv_t()
-        : h(0), w(0), ic(0), oc(0), kernel(0), stride(0), leaky(false),
-          inputs(0), outputs(0), weights(0), bias(0), scale(0) {}
+        : h(0), w(0), ic(0), oc(0),
+		  kernel(0), stride(0), leaky(false),
+          inputs(0), weights(0), outputs(0),
+		  bias(0), scale(0) {}
 };
 
 #define LOG(...) printf("LOG %s:%d ", __FILE__, __LINE__), printf(__VA_ARGS__)

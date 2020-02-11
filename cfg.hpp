@@ -9,13 +9,7 @@ const int DRAM_ADDR_BITS = 32;
 const int INPUT_OFFSET_BITS = 22;
 // 1024 input index line
 const int INPUT_IDX_BITS = 11;
-// 32KB input cache size
-const int INPUT_CACHE_SIZE = 64 * 1024;
 // 4 input cache lines
-
-const int INPUT_CACHE_LINES_MASK = 0x03;
-const int INPUT_CACHE_LINES = 4;
-
 // 1MB weights cache
 const int WEIGHTS_OFFSET_BITS = 20;
 // 1024 channel indexer

@@ -4,7 +4,7 @@
 #include "dtypes.hpp"
 
 namespace ProcessElement {
-void processIC(dimidx_t h, dimidx_t w, cidx_t ci);
+void processIC(dimidx_t h, dimidx_t w);
 };
 
 #endif

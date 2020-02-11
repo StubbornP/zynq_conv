@@ -2,147 +2,96 @@
 #include "config_board.hpp"
 
 namespace InputsCache {
-namespace Internal {
-// cache line index
-cacheline_t line;
-// cache load offset
-imidx_t cache_offset;
-// cache line pixels
-imidx_t line_size;
-// total cache elements
-imidx_t cache_size;
-// dram offset
+dimidx_t lh, lw;
 imidx_t dram_offset;
-// BRAM cache
-data8_t IBRAM[INPUT_CACHE_SIZE] = {0};
-// load one pixel from DRAM
-// load one input channel pixels from DRAM to ICache
-void loadInputChannel(volatile data8_t* SHARED_DRAM) {
-#pragma HLS INLINE
-#pragma HLS PIPELINE
-#pragma HLS RESOURCE variable = IBRAM core = RAM_T2P_BRAM latency = 1
-#pragma HLS ARRAY_PARTITION variable = IBRAM cyclic factor = N_PE dim = 0 //
-    const conv_t conv_cfg = ConfigBoard::getConv();
-    const cidx_t ic = conv_cfg.ic;
-    LOG("ICache: load input channel from DRAM, (%d pixels)\n",
-        (int)conv_cfg.ic);
-    data8_t* dst = &IBRAM[cache_offset];
-    volatile data8_t* src = &SHARED_DRAM[dram_offset];
-    copy_dram<data8_t, 32>(dst, src, ic);
-    cache_offset += ic;
-    dram_offset += ic;
-    if (cache_offset >= cache_size) {
-        cache_offset = 0;
-    }
-}
-}; // namespace Internal
-// reset cache and DRAM address
+data8_t IBRAM[4][4][4096];
 void reset() {
 #pragma HLS INLINE
     const conv_t conv_cfg = ConfigBoard::getConv();
-    Internal::line = 0;
-    Internal::line_size = conv_cfg.w * conv_cfg.ic;
-    Internal::cache_offset = 0;
-    Internal::cache_size = Internal::line_size * INPUT_CACHE_LINES;
-    Internal::dram_offset = conv_cfg.inputs;
+    lh = 0;
+    lw = 0;
+    dram_offset = conv_cfg.inputs;
 }
-// load one widths pixels from DRAM to ICache
-void loadRow(volatile data8_t* SHARED_DRAM) {
+void getIndex(dimidx_t h, dimidx_t w, Index &idx) {
 #pragma HLS INLINE
-    const conv_t conv_cfg = ConfigBoard::getConv();
-    const dimidx_t conv_w = conv_cfg.w;
-    LOG("ICache: load input row, width: %d, channels: %d\n", (int)conv_cfg.w,
-        (int)(conv_cfg.ic));
-ICACHE_LOAD_W:
-    for (coordinate_t w = 0; w < conv_w; w++) {
-#pragma HLS LOOP_TRIPCOUNT min = 14 max = 416 avg = 45
-        Internal::loadInputChannel(SHARED_DRAM);
-    }
+#pragma HLS ARRAY_PARTITION variable = IBRAM complete dim = 1 // h
+#pragma HLS ARRAY_PARTITION variable = IBRAM complete dim = 2 // w
+#pragma HLS ARRAY_PARTITION variable = IBRAM cyclic dim = 3 factor=2 // ci
+#pragma HLS RESOURCE variable = IBRAM core = RAM_T2P_BRAM latency = 1
+	const conv_t conv_cfg = ConfigBoard::getConv();
+    const cidx_t IC = conv_cfg.ic;
+	idx.h = h % 4;
+	idx.w = w % 4;
+	idx.c = (w / 4) * IC;
+    LOG("ICache: getIndex(h: %d, w: %d): ch: %d, cw: %d, cc: %d\n",
+    		(int)h, (int)w, (int)idx.h, (int)idx.w, (int)idx.c);
 }
-// get cache row base address
-imidx_t getRowOffset(const dimidx_t h) {
+void get9Index(dimidx_t h, dimidx_t w, Index idx[9]) {
 #pragma HLS INLINE
-    cacheline_t target_line = h & INPUT_CACHE_LINES_MASK;
-    imidx_t row_offset = target_line * Internal::line_size;
-    return row_offset;
+	const conv_t conv_cfg = ConfigBoard::getConv();
+	const dimidx_t H = conv_cfg.h;
+	const dimidx_t W = conv_cfg.w;
+	dimidx_t hh=h-1;
+	imidx_t pix_off = 0;
+	for(int i=0; i<3; i++, hh++) {
+		dimidx_t ww=w-1;
+		bool is_pad_h = (hh<0 || hh>=H);
+		for(int j=0; j<3; j++, ww++) {
+			bool is_pad_w = (ww<0 || ww>=W);
+			if (is_pad_h || is_pad_w) {
+				idx[pix_off].c = -1;
+			    LOG("ICache: getIndex(h: %d, w: %d): pad\n",
+			    		(int)hh, (int)ww);
+			} else {
+				getIndex(hh, ww, idx[pix_off]);
+			}
+			pix_off ++;
+		}
+	}
 }
-// fetch one pixel from cache
-data8_t fetchCachePixel(const dimidx_t h, const dimidx_t w,
-                        const imidx_t row_offset) {
-#pragma HLS INLINE
-    const conv_t conv_cfg = ConfigBoard::getConv();
-    const cidx_t ic = conv_cfg.ic;
-    const dimidx_t ih = conv_cfg.h, iw = conv_cfg.w;
-    data8_t ret;
-    bool is_pad = (h < 0 | h >= ih | w < 0 | w >= iw);
-
-    if (is_pad) {
-        LOG("ImageCache: getPixel( y: %d, x: %d) %s -> %d\n", (int)h, (int)w,
-            is_pad ? "PAD" : "", 0);
-        return data8_t(0);
-    } else {
-        imidx_t offset = row_offset + w * ic;
-#pragma HLS RESOURCE variable = offset core = MulnS latency = 3
-        ret = Internal::IBRAM[offset];
-    }
-    LOG("ImageCache: getPixel( y: %d, x: %d) %s -> %d\n", (int)h, (int)w,
-        is_pad ? "PAD" : "", (int)ret);
-    return ret;
-}
-
-void fetchInputs(dimidx_t h, dimidx_t w, cidx_t ci, data8_t inputs[9]) {
+void loadIC(volatile data8_t *SHM8_DRAM) {
 #pragma HLS INLINE
 #pragma HLS PIPELINE
-    const conv_t& conv_cfg = ConfigBoard::getConv();
-    const cidx_t ic = conv_cfg.ic;
-    const dimidx_t H = conv_cfg.h;
+	const conv_t conv_cfg = ConfigBoard::getConv();
+    const cidx_t IC = conv_cfg.ic;
     const dimidx_t W = conv_cfg.w;
-    const dimidx_t ih = h - 1;
-    const dimidx_t iw = w - 1;
-    const imidx_t row_base = iw * ic + ci;
-    imidx_t row_off;
-
-    flt_idx pix_off(0);
-    dimidx_t hh = ih;
-
-    for (int j = 0; j < 3; j++, hh++) {
-        bool is_pad_h = hh < 0 || hh >= H;
-        dimidx_t ww = iw;
-        row_off =
-            row_base + (hh & INPUT_CACHE_LINES_MASK) * Internal::line_size;
-        for (int i = 0; i < 3; i++, ww++) {
-            if (is_pad_h || ww < 0 || ww >= W) {
-                inputs[pix_off] = data8_t(0);
-            } else {
-                inputs[pix_off] = Internal::IBRAM[row_off];
-            }
-            pix_off++;
-            row_off += ic;
-        }
+    const dimidx_t burst = 32;
+    Index idx;
+	getIndex(lh, lw, idx);
+	data8_t *BRAM = &IBRAM[idx.h][idx.w][idx.c];
+    volatile data8_t* DRAM = &SHM8_DRAM[dram_offset];
+    copy_dram<data8_t, 32>(BRAM, DRAM, IC);
+	dram_offset += IC;
+	lw++;
+	if (lw == W) {
+		lw = 0;
+		lh ++;
+	}
+}
+void loadW(volatile data8_t* SHM8_DRAM) {
+#pragma HLS INLINE
+	const conv_t conv_cfg = ConfigBoard::getConv();
+    const cidx_t IC = conv_cfg.ic;
+    const dimidx_t W = conv_cfg.w;
+    LOG("ICache: load input row, width: %d, channels: %d\n", (int)W,
+        (int)(IC));
+ICACHE_LOAD_W:
+    for (coordinate_t w = 0; w < W; w++) {
+#pragma HLS LOOP_TRIPCOUNT min = 14 max = 416 avg = 45
+        loadIC(SHM8_DRAM);
     }
 }
-
-void inputsCacheTest(conv_t conv, volatile data8_t* SHARED_DRAM, data32_t cmd) {
+void fetchInputs(cidx_t ci, const Index idx[9], data8_t inputs[9]) {
 #pragma HLS INLINE
-    cidx_t c;
-    dimidx_t h, w;
-    const conv_t& conv_cfg = ConfigBoard::getConv();
-
-    h = (cmd >> 24) & 0xFF;
-    w = (cmd >> 16) & 0xFF;
-    c = (cmd >> 8) & 0xFF;
-    cmd = (cmd)&0xFF;
-
-    if (cmd == 0) {
-        reset();
-    } else if (cmd == 1) {
-        loadRow(SHARED_DRAM);
-    } else if (cmd == 2) {
-        data8_t ret;
-        imidx_t row_offset;
-        row_offset = getRowOffset(h);
-        ret = fetchCachePixel(h, w, row_offset);
-        SHARED_DRAM[conv_cfg.inputs] = ret;
-    }
+#pragma HLS PIPELINE
+	for (int i=0; i<9; i++) {
+#pragma HLS UNROLL
+		Index tid = idx[i];
+		if (tid.c<0) {
+			inputs[i] = 0;
+		} else {
+			inputs[i] = IBRAM[tid.h][tid.w][tid.c+ci];
+		}
+	}
 }
 }; // namespace InputsCache

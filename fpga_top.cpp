@@ -17,42 +17,50 @@ void fpga_top(conv_t conv,
 #pragma HLS INTERFACE s_axilite port = conv bundle = ctrl_bus register
 #pragma HLS INTERFACE s_axilite port = return bundle = ctrl_bus register
 
-     ConfigBoard::setConv(conv);
-     const conv_t& conv_cfg = ConfigBoard::getConv();
+    ConfigBoard::setConv(conv);
+    const conv_t& conv_cfg = ConfigBoard::getConv();
+    const dimidx_t H = conv_cfg.h;
+    const dimidx_t W = conv_cfg.w;
+    const cidx_t OC = conv_cfg.oc;
 
-     InputsCache::reset();
-	 WeightsCache::loadWeights(SHM16_DRAM);
-     PostProcess::loadParams(SHM32_DRAM);
-     OutputsBuffer::setup();
+    InputsCache::reset();
+    WeightsCache::loadWeights(SHM16_DRAM);
+    PostProcess::loadParams(SHM32_DRAM);
+    OutputsBuffer::setup();
 
-     InputsCache::loadW(SHM8_DRAM);  // preload 2 pixels, 1 pad
-     InputsCache::loadIC(SHM8_DRAM); // 1 pixel per width
-     const dimidx_t conv_h = conv_cfg.h;
-     const dimidx_t conv_w = conv_cfg.w;
+    for (coordinate_t w = 0; w < W; w++) {
+#pragma HLS LOOP_TRIPCOUNT min = 14 max = 416 avg = 45
+        InputsCache::loadIC(0, w, SHM8_DRAM);
+    }
+    //     InputsCache::loadW(SHM8_DRAM);  // preload 2 pixels, 1 pad
+    //     InputsCache::loadIC(SHM8_DRAM); // 1 pixel per width
 
-     const cidx_t conv_oc = conv_cfg.oc;
+    dimidx_t h, w;
+TOP_H:
+    for (h = 0; h < H; h++) {
+#pragma HLS LOOP_TRIPCOUNT min = 8 max = 416 avg = 45
+        InputsCache::loadIC(h + 1, 0, SHM8_DRAM);
+    TOP_W:
+        for (w = 0; w < W; w++) {
+#pragma HLS LOOP_TRIPCOUNT min = 8 max = 416 avg = 45
+            dimidx_t oh, ow;
 
-     dimidx_t h, w;
- TOP_H:
-     for (h = 0; h < conv_h; h++) {
-#pragma HLS LOOP_TRIPCOUNT min=8 max=416 avg=45
-     TOP_W:
-         for (w = 0; w < conv_w; w++) {
-#pragma HLS LOOP_TRIPCOUNT min=8 max=416 avg=45
-        	 dimidx_t oh, ow;
-             oh = h, ow = w;
-             if (ConfigBoard::is3x3S2Conv()) {
-                 oh = h / 2, ow = w / 2;
-                 if (h % 2 | w % 2)
-                     continue;
-             }
-             OutputsBuffer::setDRAMAddress(oh, ow);
-             InputsCache::loadIC(SHM8_DRAM);
-             ProcessElement::processIC(h, w);
-             OutputsBuffer::flushOutputChannel(SHM8_DRAM);
-         }
-     }
- }
+            if (w + 1 < W) {
+                InputsCache::loadIC(h + 1, w + 1, SHM8_DRAM);
+            }
+
+            oh = h, ow = w;
+            if (ConfigBoard::is3x3S2Conv()) {
+                oh = h / 2, ow = w / 2;
+                if (h % 2 | w % 2)
+                    continue;
+            }
+            OutputsBuffer::setDRAMAddress(oh, ow);
+            ProcessElement::processIC(h, w);
+            OutputsBuffer::flushOutputChannel(SHM8_DRAM);
+        }
+    }
+}
 
 //void fpga_top(conv_t conv, data32_t cmd,
 //		volatile data16_t* SHM16_DRAM) {

@@ -16,15 +16,13 @@ void macc(const data8_t in[9], const data16_t weights[9], data32_t &result) {
 	data32_t out[9];
 #pragma HLS ARRAY_PARTITION variable=out complete dim=0
 	res = result;
-	for (int i=0; i<9; i++) {
+	for (int i=0; i<4; i++) {
 #pragma HLS UNROLL
 		out[i] = in[i] * weights[i];
-	}
-	for (int i=0; i<9; i++) {
-#pragma HLS UNROLL
+		out[i] += in[i+4] * weights[i+4];
 		res += out[i];
 	}
-	result = res;
+	result = res + in[8] * weights[8];
 }
 
 void processOC(cidx_t ci, data8_t inputs[9]) {

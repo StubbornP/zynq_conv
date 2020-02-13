@@ -1,8 +1,8 @@
 #include "cpu_top.hpp"
 #include "config_board.hpp"
+#include "fpga_top.hpp"
 #include "inputs_cache.hpp"
 #include "weights_cache.hpp"
-#include "fpga_top.hpp"
 
 #include <cstdlib>
 
@@ -58,7 +58,8 @@ int WeightsCacheInputChannelOffsetTest(kernel_t k) {
                     if (weights[off] == data16_t(idx % 255)) {
                         printf(".");
                     } else {
-                        printf("x(%d, %d)\n", (int)weights[off], (int)data16_t(idx % 255));
+                        printf("x(%d, %d)\n", (int)weights[off],
+                               (int)data16_t(idx % 255));
                         return 1;
                     }
                 }
@@ -66,15 +67,15 @@ int WeightsCacheInputChannelOffsetTest(kernel_t k) {
         }
     }
 
-//    fpga_top(conv_cfg, data32_t(0), Weights);
+    //    fpga_top(conv_cfg, data32_t(0), Weights);
     return 0;
 }
 
 int WeightsCacheTest() {
-    if( WeightsCacheInputChannelOffsetTest(1))
-    	return -1;
-    if( WeightsCacheInputChannelOffsetTest(3))
-    	return -1;
+    if (WeightsCacheInputChannelOffsetTest(1))
+        return -1;
+    if (WeightsCacheInputChannelOffsetTest(3))
+        return -1;
     return 0;
 }
 
@@ -123,78 +124,86 @@ int InputsCacheTest() {
             }
 
     InputsCache::reset();
-    InputsCache::loadW(Inputs);
-    InputsCache::loadIC(Inputs);
+
+    for (dimidx_t _w = 0; _w < w; _w++) {
+        InputsCache::loadIC(0, _w, Inputs);
+    }
 
     data8_t in[9];
-
-    for (dimidx_t _h = 0; _h < h; _h++)
+    for (dimidx_t _h = 0; _h < h; _h++) {
+        InputsCache::loadIC(_h + 1, 0, Inputs);
         for (dimidx_t _w = 0; _w < w; _w++) {
-            InputsCache::loadIC(Inputs);
+            if (_w + 1 < w) {
+                InputsCache::loadIC(_h + 1, _w + 1, Inputs);
+            }
             InputsCache::Index idx[9];
             InputsCache::get9Index(_h, _w, idx);
             for (cidx_t _ic = 0; _ic < ic; _ic++) {
                 InputsCache::fetchInputs(_ic, idx, in);
                 if (!checkInputs(h, w, ic, _h, _w, _ic, in)) {
-                    printf("check input[%d, %d, %d] failed!\n", (int)_h, (int)_w, (int)_ic);
+                    printf("check input[%d, %d, %d] failed!\n", (int)_h,
+                           (int)_w, (int)_ic);
                     return 1;
                 }
             }
         }
+    }
+
     return 0;
 }
 
-bool checkConvResult(conv_t conv_cfg, data8_t *inputs,
-		data16_t *weights, data32_t *Post, data8_t *Out) {
+bool checkConvResult(conv_t conv_cfg, data8_t* inputs, data16_t* weights,
+                     data32_t* Post, data8_t* Out) {
 
-	dimidx_t H = conv_cfg.h, W = conv_cfg.w;
-	cidx_t IC = conv_cfg.ic, OC = conv_cfg.oc;
-	kernel_t K = conv_cfg.kernel;
+    dimidx_t H = conv_cfg.h, W = conv_cfg.w;
+    cidx_t IC = conv_cfg.ic, OC = conv_cfg.oc;
+    kernel_t K = conv_cfg.kernel;
 
-	for (dimidx_t oh=0; oh<H; oh++)
-	for (dimidx_t ow=0; ow<W; ow++)
-	for (dimidx_t oc=0; oc<OC; oc++) {
-		data8_t res;
-		data32_t ref = 0;
-		{
-            int idx = (oh * W + ow) * OC + oc;
-            res = Out[idx];
-		}
-		for (dimidx_t ic=0; ic<conv_cfg.ic; ic++) {
-			for (dimidx_t fh=0; fh<K; fh++)
-			for (dimidx_t fw=0; fw<K; fw++) {
-				data8_t d;
-				data16_t w;
-				dimidx_t ih = oh + fh , iw = ow + fw;
-
-				{
-	                int idx = ((ic * OC + oc) * K + fh) * K + fw;
-	                w = weights[idx];
-				}
-
-                if (ih<0||ih>=H||iw<0||iw>=W)
-                	d = data8_t(0);
-                else {
-                    int idx = (ih * W + iw) * IC + ic;
-                    d = inputs[idx];
+    for (dimidx_t oh = 0; oh < H; oh++)
+        for (dimidx_t ow = 0; ow < W; ow++)
+            for (dimidx_t oc = 0; oc < OC; oc++) {
+                data8_t res;
+                data32_t ref = 0;
+                {
+                    int idx = (oh * W + ow) * OC + oc;
+                    res = Out[idx];
                 }
-                ref += d * w;
-			}
-		}
-		data32_t bias, scale;
-		scale = Post[oc];
-		bias = Post[OC+oc];
-		ref = (ref + bias) / scale;
-		LOG("checking conv result: %d, %d\n", (int)res, (int)data8_t(ref));
-		if (res != data8_t(ref)) {
-			return false;
-		}
-	}
-	return true;
+                for (dimidx_t ic = 0; ic < conv_cfg.ic; ic++) {
+                    for (dimidx_t fh = 0; fh < K; fh++)
+                        for (dimidx_t fw = 0; fw < K; fw++) {
+                            data8_t d;
+                            data16_t w;
+                            dimidx_t ih = oh + fh, iw = ow + fw;
+
+                            {
+                                int idx = ((ic * OC + oc) * K + fh) * K + fw;
+                                w = weights[idx];
+                            }
+
+                            if (ih < 0 || ih >= H || iw < 0 || iw >= W)
+                                d = data8_t(0);
+                            else {
+                                int idx = (ih * W + iw) * IC + ic;
+                                d = inputs[idx];
+                            }
+                            ref += d * w;
+                        }
+                }
+                data32_t bias, scale;
+                scale = Post[oc];
+                bias = Post[OC + oc];
+                ref = (ref + bias) / scale;
+                LOG("checking conv result: %d, %d\n", (int)res,
+                    (int)data8_t(ref));
+                if (res != data8_t(ref)) {
+                    return false;
+                }
+            }
+    return true;
 }
 
 int intergrationCosimTest() {
-	const kernel_t k = 1;
+    const kernel_t k = 1;
     const dimidx_t h = 32, w = 32;
     const cidx_t ic = 16, oc = 16;
     conv_t conv_cfg;
@@ -230,25 +239,23 @@ int intergrationCosimTest() {
                     Weights[idx] = data16_t(idx % 16);
                 }
     for (int _oc = 0; _oc < oc; _oc++) {
-    	Post[_oc] = data32_t(1);
-    	Post[oc+_oc] = data32_t(1);
+        Post[_oc] = data32_t(1);
+        Post[oc + _oc] = data32_t(1);
     }
-//    fpga_top(conv_cfg, data32_t(0), Inputs, Weights, Post);
+    //    fpga_top(conv_cfg, data32_t(0), Inputs, Weights, Post);
     // outputs
-    data8_t *out = &Inputs[8* 1024 * 1024];
+    data8_t* out = &Inputs[8 * 1024 * 1024];
     return checkConvResult(conv_cfg, Inputs, Weights, Post, out);
 }
 
 int UnitTest() {
-//    if (WeightsCacheTest())
-//    	return -1;
-    if (InputsCacheTest())
-    	return -1;
-//    if (!intergrationCosimTest())
-//    	return -1;
+    if (WeightsCacheTest())
+        return -1;
+    //    if (InputsCacheTest())
+    //    	return -1;
+    //    if (!intergrationCosimTest())
+    //    	return -1;
     return 0;
 }
 
-int main() {
-	return UnitTest();
-}
+int main() { return UnitTest(); }

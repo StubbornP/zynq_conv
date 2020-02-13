@@ -7,6 +7,8 @@ data32_t OBRAM[MAX_CHANNEL_OUT];
 memaddr_t WStride, DRAMAddr;
 
 void setup() {
+#pragma HLS ARRAY_PARTITION variable=OBRAM cyclic factor=N_PE
+#pragma HLS RESOURCE variable=OBRAM core=RAM_T2P_BRAM latency=1
 	const conv_t& conv_cfg = ConfigBoard::getConv();
 	const dimidx_t w = conv_cfg.w;
 	dimidx_t ow = (conv_cfg.stride==2)?dimidx_t(w+1/2):w;
@@ -25,8 +27,7 @@ void setDRAMAddress(dimidx_t oh, dimidx_t ow) {
 
 data32_t getOutputChannel(cidx_t co) {
 #pragma HLS INLINE
-#pragma HLS ARRAY_PARTITION variable=OBRAM cyclic factor=N_PE
-#pragma HLS RESOURCE variable=OBRAM core=RAM_T2P_BRAM latency=1
+#pragma HLS FUNCTION_INSTANTIATE variable=co
 	return OBRAM[co];
 }
 void putOutputChannel(cidx_t co, data32_t val) {

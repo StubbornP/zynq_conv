@@ -4,7 +4,7 @@
 namespace InputsCache {
 dimidx_t lh, lw;
 imidx_t dram_offset;
-data8_t IBRAM[4][4][4096];
+data8_t IBRAM[5][4][4096];
 void reset() {
 #pragma HLS INLINE
     const conv_t conv_cfg = ConfigBoard::getConv();
@@ -19,23 +19,23 @@ void getIndex(dimidx_t h, dimidx_t w, Index& idx) {
 #pragma HLS RESOURCE variable = IBRAM core = RAM_T2P_BRAM latency = 1
     const conv_t conv_cfg = ConfigBoard::getConv();
     const cidx_t IC = conv_cfg.ic;
-    idx.h = h % 4;
+    idx.h = h % 5;
     idx.w = w % 4;
     idx.c = (w / 4) * IC;
     LOG("ICache: getIndex(h: %d, w: %d): ch: %d, cw: %d, cc: %d\n", (int)h,
         (int)w, (int)idx.h, (int)idx.w, (int)idx.c);
 }
-void get9Index(dimidx_t h, dimidx_t w, Index idx[9]) {
+void get16Index(dimidx_t h, dimidx_t w, Index idx[16]) {
 #pragma HLS INLINE
     const conv_t conv_cfg = ConfigBoard::getConv();
     const dimidx_t H = conv_cfg.h;
     const dimidx_t W = conv_cfg.w;
     dimidx_t hh = h - 1;
     imidx_t pix_off = 0;
-    for (int i = 0; i < 3; i++, hh++) {
+    for (int i = 0; i < 4; i++, hh++) {
         dimidx_t ww = w - 1;
         bool is_pad_h = (hh < 0 || hh >= H);
-        for (int j = 0; j < 3; j++, ww++) {
+        for (int j = 0; j < 4; j++, ww++) {
             bool is_pad_w = (ww < 0 || ww >= W);
             if (is_pad_h || is_pad_w) {
                 idx[pix_off].c = -1;
@@ -73,17 +73,21 @@ ICACHE_LOAD_W:
         loadIC(0, w, SHM8_DRAM);
     }
 }
-void fetchInputs(cidx_t ci, const Index idx[9], data8_t inputs[9]) {
+void fetchInputs(cidx_t ci, const Index idx[9], data8_t inputs[16]) {
 #pragma HLS INLINE
 #pragma HLS PIPELINE
-    for (int i = 0; i < 9; i++) {
+
+	data8_t temp[16];
+
+    for (int i = 0; i < 16; i++) {
 #pragma HLS UNROLL
         Index tid = idx[i];
         if (tid.c < 0) {
-            inputs[i] = 0;
+        	temp[i] = 0;
         } else {
-            inputs[i] = IBRAM[tid.h][tid.w][tid.c + ci];
+        	temp[i] = IBRAM[tid.h][tid.w][tid.c + ci];
         }
     }
+    // transform(temp, inputs);
 }
 }; // namespace InputsCache

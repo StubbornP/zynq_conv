@@ -3,11 +3,12 @@
 #include "postprocess.hpp"
 
 namespace OutputsBuffer {
-data32_t OBRAM[MAX_CHANNEL_OUT];
+data32_t OBRAM[16][512];
 memaddr_t WStride, DRAMAddr;
 
 void setup() {
-#pragma HLS ARRAY_PARTITION variable=OBRAM cyclic factor=N_PE
+#pragma HLS ARRAY_PARTITION variable=OBRAM cyclic dim=1 factor=N_PE
+#pragma HLS ARRAY_PARTITION variable=OBRAM cyclic dim=2 factor=4
 #pragma HLS RESOURCE variable=OBRAM core=RAM_T2P_BRAM latency=1
 	const conv_t& conv_cfg = ConfigBoard::getConv();
 	const dimidx_t w = conv_cfg.w;

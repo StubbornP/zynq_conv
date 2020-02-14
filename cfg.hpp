@@ -2,7 +2,7 @@
 #define _CFG_H_
 
 // Number of ProcessElement
-const int N_PE = 16;
+const int N_PE = 8;
 // 4MB addr line
 const int DRAM_ADDR_BITS = 32;
 // 4MB addr line

@@ -10,17 +10,27 @@
 namespace ProcessElement {
 namespace Internal {
 
-void macc(const data8_t in[9], const data16_t weights[9], data32_t &result) {
+void macc(const data8_t in[9], const data8_t weights[9], data32_t &result) {
 #pragma HLS INLINE
 	data32_t res;
-	data32_t out[9];
-#pragma HLS ARRAY_PARTITION variable=out complete dim=0
+	data32_t stage1[4], stage2[4];
+
 	res = result;
+
+#pragma HLS RESOURCE variable=stage1 core=MulnS
+#pragma HLS RESOURCE variable=stage2 core=MulnS
+
 	for (int i=0; i<4; i++) {
 #pragma HLS UNROLL
-		out[i] = in[i] * weights[i];
-		out[i] += in[i+4] * weights[i+4];
-		res += out[i];
+		stage1[i] = in[i] * weights[i];
+	}
+	for (int i=0; i<4; i++) {
+#pragma HLS UNROLL
+		stage2[i] = stage1[i] + in[i+4] * weights[i+4];
+	}
+	for (int i=0; i<4; i++) {
+#pragma HLS UNROLL
+		res += stage2[i];
 	}
 	result = res + in[8] * weights[8];
 }
@@ -39,7 +49,7 @@ L_PROCESS_OC:
 #pragma HLS UNROLL factor=N_PE
 #pragma HLS PIPELINE II=1
 		data32_t result(0);
-		data16_t weights[9];
+		data8_t weights[9];
 #pragma HLS ARRAY_PARTITION variable=weights complete dim=0
 		WeightsCache::fetch9Weights(ci_offset, co, weights);
 		if (!clear) {

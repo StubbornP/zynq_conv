@@ -4,7 +4,7 @@
 namespace WeightsCache {
 // BRAM cache
 cidx_t align;
-data16_t WBRAM[1024][N_PE][9];
+data8_t WBRAM[2048][N_PE][9];
 
 void getIndex(const cidx_t oc, const widx_t ic_offset, cacheline_idx_t& line,
               peidx_t& peid) {
@@ -18,7 +18,7 @@ void getIndex(const cidx_t oc, const widx_t ic_offset, cacheline_idx_t& line,
 }
 
 // load layer weights from DRAM
-void loadWeights(volatile data16_t* SHM16_DRAM) {
+void loadWeights(volatile data8_t* SHM16_DRAM) {
 #pragma HLS INLINE
     const conv_t conv_cfg = ConfigBoard::getConv();
     const cidx_t ic = conv_cfg.ic;
@@ -33,7 +33,7 @@ void loadWeights(volatile data16_t* SHM16_DRAM) {
     align = (oc + N_PE) - (oc % N_PE);
 
     widx_t ci_offset = 0;
-    volatile data16_t* DRAM = &SHM16_DRAM[weights];
+    volatile data8_t* DRAM = &SHM16_DRAM[weights];
 
 WCACHE_LOAD:
     for (cidx_t ci = 0; ci < ic; ci++) {
@@ -41,18 +41,17 @@ WCACHE_LOAD:
         cidx_t co;
         peidx_t peid;
         cacheline_idx_t line;
-        volatile data16_t* BASE;
+        volatile data8_t* BASE;
 
         co = 0;
         getIndex(co, ci_offset, line, peid);
         for (widx_t w = 0; w < words_per_oc;) {
 #pragma HLS LOOP_TRIPCOUNT MIN = 1 AVG = 5 MAX = 10
-            //#pragma HLS PIPELINE
             flt_idx flt(0);
-            volatile data16_t* BASE = &DRAM[w];
+            volatile data8_t* BASE = &DRAM[w];
             for (widx_t c = 0; c < burst; c++) {
 #pragma HLS PIPELINE
-                data16_t temp = BASE[c];
+                data8_t temp = BASE[c];
                 if (kernel == 1) {
                     for (flt_idx f = 0; f < 9; f++) {
 #pragma HLS UNROLL
@@ -82,7 +81,7 @@ WCACHE_LOAD:
     }
 }
 
-void fetch9Weights(widx_t ic_offset, cidx_t oc, data16_t weights[9]) {
+void fetch9Weights(widx_t ic_offset, cidx_t oc, data8_t weights[9]) {
 #pragma HLS INLINE
 #pragma HLS FUNCTION_INSTANTIATE variable = oc
 #pragma HLS PIPELINE II = 1
@@ -97,7 +96,7 @@ void fetch9Weights(widx_t ic_offset, cidx_t oc, data16_t weights[9]) {
     LOG("ci_offset: %d, co: %d\n", (int)ic_offset, (int)oc);
 }
 
-void weightsCacheTest(conv_t conv_cfg, volatile data16_t* SHARED_DRAM,
+void weightsCacheTest(conv_t conv_cfg, volatile data8_t* SHARED_DRAM,
                       data32_t cmd) {
 #pragma HLS INLINE
     ConfigBoard::setConv(conv_cfg);
@@ -106,7 +105,7 @@ void weightsCacheTest(conv_t conv_cfg, volatile data16_t* SHARED_DRAM,
     } else {
         const conv_t& cfg = ConfigBoard::getConv();
         static widx_t channel_off = 0, addr_offset = 0;
-        data16_t f[9];
+        data8_t f[9];
         cidx_t ic = channel_off / cfg.oc;
         cidx_t oc = channel_off % cfg.oc;
         WeightsCache::fetch9Weights(ic, oc, f);

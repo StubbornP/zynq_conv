@@ -51,12 +51,10 @@ TOP_H:
 #pragma HLS LOOP_TRIPCOUNT min = 8 max = 416 avg = 45
         	bool load_w = (w+2)<W;
             if (load_h && load_w) {
-                InputsCache::loadIC(h + 2, w + 1, SHM8_DRAM);
+                InputsCache::loadIC(h + 2, w + 2, SHM8_DRAM);
             }
-            if (ConfigBoard::is3x3S2Conv()) {
-                if (h % 2 | w % 2)
-                    continue;
-            }
+            if (h % 2 | w % 2)
+            	continue;
             OutputsBuffer::setDRAMAddress(h, w);
             ProcessElement::processIC(h, w);
             OutputsBuffer::flushOutputChannel(SHM8_DRAM);

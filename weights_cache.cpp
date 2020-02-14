@@ -25,9 +25,45 @@ void getIndex(const cidx_t oc, const widx_t ic_offset,
 //			⎢              ⎥
 //			⎣ 0    0     1 ⎦
 void GgGt(const data16_t in[9], data16_t out[16]) {
+#pragma HLS INLINE
     data16_t temp[12];
 #pragma HLS ARRAY_PARTITION variable=temp complete dim=0
 #pragma HLS RESOURCE variable=temp core=AddSubnS
+    temp[0] = 2 * in[0];
+    temp[1] = 2 * in[1];
+    temp[2] = 2 * in[2];
+
+    temp[3] = in[0] + in[3] + in[6];
+    temp[4] = in[1] + in[4] + in[7];
+    temp[5] = in[2] + in[5] + in[8];
+
+    temp[6] = in[0] - in[3] + in[6];
+    temp[7] = in[1] - in[4] + in[7];
+    temp[8] = in[2] - in[5] + in[8];
+
+    temp[9]  = 2 * in[6];
+    temp[10] = 2 * in[7];
+    temp[11] = 2 * in[8];
+
+    out[0] = 2 * temp[0];
+    out[1] = temp[0] + temp[1] + temp[2];
+    out[2] = temp[0] - temp[1] + temp[2];
+    out[3] = 2 * temp[2];
+
+    out[4] = 2 * temp[3];
+    out[5] = temp[3] + temp[4] + temp[5];
+    out[6] = temp[3] - temp[4] + temp[5];
+    out[7] = 2 * temp[5];
+
+    out[8] = 2 * temp[6];
+    out[9] = temp[6] + temp[7] + temp[8];
+    out[10] = temp[6] - temp[7] + temp[8];
+    out[11] = 2 * temp[8];
+
+    out[12] = 2 * temp[9];
+    out[13] = temp[9] + temp[10] + temp[11];
+    out[14] = temp[9] - temp[10] + temp[11];
+    out[15] = 2 * temp[11];
 }
 
 // load layer weights from DRAM
@@ -62,15 +98,15 @@ WCACHE_LOAD:
             for (widx_t c = 0; c < burst; c++) {
 #pragma HLS PIPELINE
             	temp[flt] = BASE[c];
+                LOG("load weights[ci_offset: %d, co: %d, flt: %d], val: %d\n",
+                    (int)ci_offset, (int)co, (int)flt, (short)temp[flt]);
                 if (flt == 8) {
                     flt = 0;
                     getIndex(co++, ci_offset, line, peid);
-                    // transform (temp, WBRAM[line][peid]);
+                    GgGt(temp, WBRAM[line][peid]);
                 } else {
                     flt++;
                 }
-                LOG("load weights[ci_offset: %d, co: %d, flt: %d], val: %d\n",
-                    (int)ci_offset, (int)co, (int)flt, (short)temp);
             }
             w += burst;
         }

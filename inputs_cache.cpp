@@ -4,7 +4,7 @@
 namespace InputsCache {
 dimidx_t lh, lw;
 imidx_t dram_offset;
-data8_t IBRAM[5][4][4096];
+data8_t IBRAM[6][4][4096];
 void reset() {
 #pragma HLS INLINE
     const conv_t conv_cfg = ConfigBoard::getConv();
@@ -19,7 +19,8 @@ void getIndex(dimidx_t h, dimidx_t w, Index& idx) {
 #pragma HLS RESOURCE variable = IBRAM core = RAM_T2P_BRAM latency = 1
     const conv_t conv_cfg = ConfigBoard::getConv();
     const cidx_t IC = conv_cfg.ic;
-    idx.h = h % 5;
+    const dimidx_t hd5 = h/5;
+    idx.h = h - hd5 * 5;
     idx.w = w % 4;
     idx.c = (w / 4) * IC;
     LOG("ICache: getIndex(h: %d, w: %d): ch: %d, cw: %d, cc: %d\n", (int)h,
@@ -73,12 +74,61 @@ ICACHE_LOAD_W:
         loadIC(0, w, SHM8_DRAM);
     }
 }
+//		⎡1   0  0   0 ⎤
+//		⎢             ⎥
+//		⎢0   1  -1  -1⎥
+//	B=	⎢             ⎥
+//		⎢-1  1  1   0 ⎥
+//		⎢             ⎥
+//		⎣0   0  0   1 ⎦
+void BtdB(data8_t in[16], data8_t out[16]) {
+#pragma HLS INLINE
+	data8_t temp[16];
+#pragma HLS ARRAY_PARTITION variable=temp complete dim=0
+	// Btd
+	temp[0] = in[0] - in[8];
+	temp[1] = in[1] - in[9];
+	temp[2] = in[2] - in[10];
+	temp[3] = in[3] - in[11];
+	temp[4] = in[4] + in[8];
+	temp[5] = in[5] + in[9];
+	temp[6] = in[6] + in[10];
+	temp[7] = in[7] + in[11];
+	temp[8] = in[8] - in[4];
+	temp[9] = in[9] - in[5];
+	temp[10] = in[10] - in[6];
+	temp[11] = in[11] - in[7];
+	temp[12] = in[12] - in[4];
+	temp[13] = in[13] - in[5];
+	temp[14] = in[14] - in[6];
+	temp[15] = in[15] - in[7];
+	// BtdB
+	out[0] = temp[0] - temp[2];
+	out[1] = temp[1] + temp[2];
+	out[2] = temp[2] - temp[1];
+	out[3] = temp[3] - temp[1];
+
+	out[4] = temp[4] - temp[6];
+	out[5] = temp[5] + temp[6];
+	out[6] = temp[6] - temp[5];
+	out[7] = temp[7] - temp[5];
+
+	out[8] = temp[8] - temp[10];
+	out[9] = temp[9] + temp[10];
+	out[10] = temp[10] - temp[9];
+	out[11] = temp[11] - temp[9];
+
+	out[12] = temp[12] - temp[14];
+	out[13] = temp[13] + temp[14];
+	out[14] = temp[14] - temp[13];
+	out[15] = temp[15] - temp[13];
+}
+
 void fetchInputs(cidx_t ci, const Index idx[9], data8_t inputs[16]) {
 #pragma HLS INLINE
 #pragma HLS PIPELINE
-
 	data8_t temp[16];
-
+#pragma HLS ARRAY_PARTITION variable=temp complete dim=0
     for (int i = 0; i < 16; i++) {
 #pragma HLS UNROLL
         Index tid = idx[i];
@@ -88,6 +138,6 @@ void fetchInputs(cidx_t ci, const Index idx[9], data8_t inputs[16]) {
         	temp[i] = IBRAM[tid.h][tid.w][tid.c + ci];
         }
     }
-    // transform(temp, inputs);
+    BtdB(temp, inputs);
 }
 }; // namespace InputsCache

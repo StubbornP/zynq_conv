@@ -8,7 +8,7 @@ struct Index {
 	dimidx_t h, w;
 };
 void reset();
-void get9Index(dimidx_t h, dimidx_t w, Index idx[16]);
+void get16Index(dimidx_t h, dimidx_t w, Index idx[16]);
 
 void loadIC(dimidx_t h, dimidx_t w, volatile data8_t *SHARED_DRAM);
 void loadW(volatile data8_t* SHARED_DRAM);

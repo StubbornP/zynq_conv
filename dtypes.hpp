@@ -6,9 +6,9 @@
 #include <ap_int.h>
 #include <cassert>
 #include <cstdio>
-#include <hls_stream.h>
+//#include <hls_stream.h>
 
-using hls::stream;
+//using hls::stream;
 
 template <class T>  T reg(T x) {
 #pragma HLS pipeline
@@ -80,9 +80,11 @@ template<typename T, size_t burst>
 void copy_dram(T *dst, volatile T *src, int n) {
 #pragma HLS INLINE
 	for (int i=0; i<n; i+=burst) {
+		T *BRAM = &dst[i];
+		volatile T *DRAM = &src[i];
 		for (int c=0; c<burst; c++) {
 #pragma HLS PIPELINE
-			dst[c] = src[c];
+			BRAM[c] = DRAM[c];
 		}
 	}
 }

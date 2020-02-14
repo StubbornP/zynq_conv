@@ -47,7 +47,6 @@ WCACHE_LOAD:
         getIndex(co, ci_offset, line, peid);
         for (widx_t w = 0; w < words_per_oc;) {
 #pragma HLS LOOP_TRIPCOUNT MIN = 1 AVG = 5 MAX = 10
-            //#pragma HLS PIPELINE
             flt_idx flt(0);
             volatile data16_t* BASE = &DRAM[w];
             for (widx_t c = 0; c < burst; c++) {

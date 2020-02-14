@@ -28,7 +28,7 @@ void fpga_top(conv_t conv,
     PostProcess::loadParams(SHM32_DRAM);
     OutputsBuffer::setup();
 
-    for (coordinate_t w = 0; w < W; w++) {
+    for (dimidx_t w = 0; w < W; w++) {
 #pragma HLS LOOP_TRIPCOUNT min = 14 max = 416 avg = 45
         InputsCache::loadIC(0, w, SHM8_DRAM);
     }

@@ -173,7 +173,7 @@ bool checkConvResult(conv_t conv_cfg, data8_t* inputs, data16_t* weights,
                         for (dimidx_t fw = 0; fw < K; fw++) {
                             data8_t d;
                             data16_t w;
-                            dimidx_t ih = oh + fh, iw = ow + fw;
+                            dimidx_t ih = oh + fh - 1 , iw = ow + fw - 1;
 
                             {
                                 int idx = ((ic * OC + oc) * K + fh) * K + fw;
@@ -203,7 +203,7 @@ bool checkConvResult(conv_t conv_cfg, data8_t* inputs, data16_t* weights,
 }
 
 int intergrationCosimTest() {
-    const kernel_t k = 1;
+    const kernel_t k = 3;
     const dimidx_t h = 32, w = 32;
     const cidx_t ic = 16, oc = 16;
     conv_t conv_cfg;
@@ -242,19 +242,19 @@ int intergrationCosimTest() {
         Post[_oc] = data32_t(1);
         Post[oc + _oc] = data32_t(1);
     }
-    //    fpga_top(conv_cfg, data32_t(0), Inputs, Weights, Post);
+    fpga_top(conv_cfg, Inputs, Weights, Post);
     // outputs
     data8_t* out = &Inputs[8 * 1024 * 1024];
     return checkConvResult(conv_cfg, Inputs, Weights, Post, out);
 }
 
 int UnitTest() {
-    if (WeightsCacheTest())
-        return -1;
+//    if (WeightsCacheTest())
+//        return -1;
     //    if (InputsCacheTest())
     //    	return -1;
-    //    if (!intergrationCosimTest())
-    //    	return -1;
+	if (!intergrationCosimTest())
+		return -1;
     return 0;
 }
 

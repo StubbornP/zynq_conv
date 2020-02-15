@@ -6,7 +6,7 @@
 #include "process_element.hpp"
 #include "weights_cache.hpp"
 
-void fpga_top(conv_t conv,
+void fpga_top_wino(conv_t conv,
 		volatile data8_t* SHM8_DRAM,
 		volatile const data16_t* SHM16_DRAM,
 		volatile data32_t* SHM32_DRAM) {
@@ -36,22 +36,21 @@ void fpga_top(conv_t conv,
 #pragma HLS LOOP_TRIPCOUNT min = 14 max = 416 avg = 45
         InputsCache::loadIC(1, w, SHM8_DRAM);
     }
-    dimidx_t h, w;
 TOP_H:
-    for (h = 0; h < H; h++) {
+    for (dimidx_t h = 0, lh=2; h < H; h++, lh++) {
 #pragma HLS LOOP_TRIPCOUNT min = 8 max = 416 avg = 45
-    	bool load_h = (h+2)<H;
-        if (h + 2 < H) {
-            InputsCache::loadIC(h + 2, 0, SHM8_DRAM);
-            InputsCache::loadIC(h + 2, 1, SHM8_DRAM);
+    	bool load_h = lh<H;
+        if (lh<H) {
+            InputsCache::loadIC(lh, 0, SHM8_DRAM);
+            InputsCache::loadIC(lh, 1, SHM8_DRAM);
         }
 
     TOP_W:
-        for (w = 0; w < W; w++) {
+        for (dimidx_t w = 0, lw=2; w < W; w++, lw++) {
 #pragma HLS LOOP_TRIPCOUNT min = 8 max = 416 avg = 45
-        	bool load_w = (w+2)<W;
+        	bool load_w = lw<W;
             if (load_h && load_w) {
-                InputsCache::loadIC(h + 2, w + 2, SHM8_DRAM);
+                InputsCache::loadIC(lh, lw, SHM8_DRAM);
             }
             if (h % 2 | w % 2)
             	continue;

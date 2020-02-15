@@ -6,8 +6,8 @@ namespace WeightsCache {
 cidx_t align;
 data16_t WBRAM[1024][N_PE][16];
 
-void getIndex(const cidx_t oc, const widx_t ic_offset,
-		cacheline_idx_t& line, peidx_t& peid) {
+void getIndex(const cidx_t oc, const widx_t ic_offset, cacheline_idx_t& line,
+              peidx_t& peid) {
 #pragma HLS INLINE
 #pragma HLS ARRAY_PARTITION variable = WBRAM complete dim = 2 // peid
 #pragma HLS ARRAY_PARTITION variable = WBRAM complete dim = 3 // peid
@@ -27,13 +27,7 @@ void getIndex(const cidx_t oc, const widx_t ic_offset,
 void GgGt(const data16_t in[9], data16_t out[16]) {
 #pragma HLS INLINE
     data16_t temp[12];
-#pragma HLS ARRAY_PARTITION variable=temp complete dim=0
-#pragma HLS RESOURCE variable=temp core=AddSubnS
-
-	for (int i=0; i<9; i++) {
-        LOG("WCache: loadWeights: %d\n", (short)in[i]);
-	}
-
+#pragma HLS ARRAY_PARTITION variable = temp complete dim = 0
     temp[0] = 2 * in[0];
     temp[1] = 2 * in[1];
     temp[2] = 2 * in[2];
@@ -46,7 +40,7 @@ void GgGt(const data16_t in[9], data16_t out[16]) {
     temp[7] = in[1] - in[4] + in[7];
     temp[8] = in[2] - in[5] + in[8];
 
-    temp[9]  = 2 * in[6];
+    temp[9] = 2 * in[6];
     temp[10] = 2 * in[7];
     temp[11] = 2 * in[8];
 
@@ -70,9 +64,12 @@ void GgGt(const data16_t in[9], data16_t out[16]) {
     out[14] = temp[9] - temp[10] + temp[11];
     out[15] = 2 * temp[11];
 
-	for (int i=0; i<16; i++) {
-        LOG("WCache: transformWeights: %d\n", (short)out[i]);
-	}
+//    for (int i = 0; i < 9; i++) {
+//        LOG("WCache: loadWeights: %d\n", (short)in[i]);
+//    }
+//    for (int i = 0; i < 16; i++) {
+//        LOG("WCache: transformWeights: %d\n", (short)out[i]);
+//    }
 }
 
 // load layer weights from DRAM
@@ -101,17 +98,18 @@ WCACHE_LOAD:
 #pragma HLS LOOP_TRIPCOUNT MIN = 1 AVG = 5 MAX = 10
             flt_idx flt(0);
             data16_t temp[9];
-#pragma HLS ARRAY_PARTITION variable=temp complete dim=0
+            getIndex(co++, ci_offset, line, peid);
             volatile const data16_t* BASE = &DRAM[w];
+#pragma HLS ARRAY_PARTITION variable = temp complete dim = 0
             for (widx_t c = 0; c < burst; c++) {
 #pragma HLS PIPELINE
-            	temp[flt] = BASE[c];
-                LOG("load weights[ci_offset: %d, co: %d, flt: %d], val: %d\n",
+                temp[flt] = BASE[c];
+                LOG("load weights[ci_offset: %d, co+1: %d, flt: %d], val: %d\n",
                     (int)ci_offset, (int)co, (int)flt, (short)temp[flt]);
                 if (flt == 8) {
-                    flt = 0;
-                    getIndex(co++, ci_offset, line, peid);
                     GgGt(temp, WBRAM[line][peid]);
+                    getIndex(co++, ci_offset, line, peid);
+                    flt = 0;
                 } else {
                     flt++;
                 }

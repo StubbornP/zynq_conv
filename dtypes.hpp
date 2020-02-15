@@ -5,7 +5,14 @@
 #include <ap_int.h>
 #include <cassert>
 #include <cstdio>
-#include <hls_video.h>
+//#include <hls_video.h>
+
+template<class T>
+T reg(T in) {
+#pragma HLS inline off
+#pragma HLS INTERFACE ap_none port=return register
+    return in;
+}
 
 // Index data type define
 typedef ap_uint<5> peidx_t;
@@ -69,12 +76,14 @@ struct conv_t {
 template<typename T, size_t burst>
 void copy_dram(T *dst, volatile T *src, int n) {
 #pragma HLS INLINE
-	for (int i=0; i<n; i+=burst) {
-		for (int c=0; c<burst; c++) {
+        for (int i=0; i<n; i+=burst) {
+                T *BRAM = &dst[i];
+                volatile T *DRAM = &src[i];
+                for (int c=0; c<burst; c++) {
 #pragma HLS PIPELINE
-			dst[c] = src[c];
-		}
-	}
+                        BRAM[c] = DRAM[c];
+                }
+        }
 }
 
 #endif

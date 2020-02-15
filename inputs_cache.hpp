@@ -4,8 +4,7 @@
 
 namespace InputsCache {
 struct Index {
-	dimidx_t c;
-	dimidx_t h, w;
+	dimidx_t c, h, w;
 };
 void reset();
 void get16Index(dimidx_t h, dimidx_t w, Index idx[16]);

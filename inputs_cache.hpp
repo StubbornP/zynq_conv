@@ -15,7 +15,7 @@ void loadW(volatile data8_t* SHARED_DRAM);
 
 void setDRAMRow(dimidx_t row);
 imidx_t getRowOffset(const dimidx_t h);
-void fetchInputs(cidx_t ci, const Index idx[16], data8_t inputs[16]);
+void fetchInputs(cidx_t ci, const Index idx[16], data10_t inputs[16]);
 void inputsCacheTest(conv_t conv, volatile data8_t *SHARED_DRAM, data32_t cmd);
 }; // namespace InputsCache
 #endif

@@ -4,7 +4,7 @@
 namespace InputsCache {
 dimidx_t lh, lw;
 imidx_t dram_offset;
-data8_t IBRAM[6][4][4096];
+data8_t IBRAM[5][4][4096];
 void reset() {
 #pragma HLS INLINE
     const conv_t conv_cfg = ConfigBoard::getConv();
@@ -76,12 +76,12 @@ ICACHE_LOAD_W:
 }
 //		⎡1   0  0   0 ⎤
 //		⎢             ⎥
-//		⎢0   1  -1  -1⎥
+//		⎢0   1 -1   1 ⎥
 //	B=	⎢             ⎥
 //		⎢-1  1  1   0 ⎥
 //		⎢             ⎥
-//		⎣0   0  0   1 ⎦
-void BtdB(data8_t in[16], data8_t out[16]) {
+//		⎣0   0  0  -1 ⎦
+void BtdB(data8_t in[16], data10_t out[16]) {
 #pragma HLS INLINE
 	data8_t temp[16];
 #pragma HLS ARRAY_PARTITION variable=temp complete dim=0
@@ -98,33 +98,36 @@ void BtdB(data8_t in[16], data8_t out[16]) {
 	temp[9] = in[9] - in[5];
 	temp[10] = in[10] - in[6];
 	temp[11] = in[11] - in[7];
-	temp[12] = in[12] - in[4];
-	temp[13] = in[13] - in[5];
-	temp[14] = in[14] - in[6];
-	temp[15] = in[15] - in[7];
+	temp[12] = in[4] - in[12];
+	temp[13] = in[5] - in[13];
+	temp[14] = in[6] - in[14];
+	temp[15] = in[7] - in[15];
 	// BtdB
 	out[0] = temp[0] - temp[2];
 	out[1] = temp[1] + temp[2];
 	out[2] = temp[2] - temp[1];
-	out[3] = temp[3] - temp[1];
+	out[3] = temp[1] - temp[3];
 
 	out[4] = temp[4] - temp[6];
 	out[5] = temp[5] + temp[6];
 	out[6] = temp[6] - temp[5];
-	out[7] = temp[7] - temp[5];
+	out[7] = temp[5] - temp[7];
 
 	out[8] = temp[8] - temp[10];
 	out[9] = temp[9] + temp[10];
 	out[10] = temp[10] - temp[9];
-	out[11] = temp[11] - temp[9];
+	out[11] = temp[9] - temp[11];
 
 	out[12] = temp[12] - temp[14];
 	out[13] = temp[13] + temp[14];
 	out[14] = temp[14] - temp[13];
-	out[15] = temp[15] - temp[13];
+	out[15] = temp[13] - temp[15];
+	for (int i=0; i<16; i++) {
+        LOG("ICache: transformInputs: %d\n", (char)out[i]);
+	}
 }
 
-void fetchInputs(cidx_t ci, const Index idx[9], data8_t inputs[16]) {
+void fetchInputs(cidx_t ci, const Index idx[16], data10_t inputs[16]) {
 #pragma HLS INLINE
 #pragma HLS PIPELINE
 	data8_t temp[16];
@@ -137,6 +140,8 @@ void fetchInputs(cidx_t ci, const Index idx[9], data8_t inputs[16]) {
         } else {
         	temp[i] = IBRAM[tid.h][tid.w][tid.c + ci];
         }
+        LOG("ICache: fetchInputs: %d\n", (char)temp[i]);
+
     }
     BtdB(temp, inputs);
 }

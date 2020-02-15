@@ -10,7 +10,7 @@ void getIndex(const cidx_t oc, const widx_t ic_offset,
 // calculate input channel offset
 widx_t getInputChannelOffset(const cidx_t ic);
 // load weights to BRAM
-void loadWeights(volatile data16_t *SHARED_DRAM);
+void loadWeights(volatile const data16_t *SHARED_DRAM);
 // fetch 9 weights from BRAM
 void fetchWeights(widx_t ic_offset, cidx_t oc, data16_t weights[16]);
 // unit test

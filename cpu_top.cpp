@@ -43,8 +43,8 @@ int WeightsCacheInputChannelOffsetTest(kernel_t k) {
     for (cidx_t _ic = 0; _ic < ic; _ic++) {
         widx_t ci_off = _ic * WeightsCache::align;
         for (cidx_t _oc = 0; _oc < oc; _oc++) {
-            data16_t weights[9];
-            WeightsCache::fetch9Weights(ci_off, _oc, weights);
+            data16_t weights[16];
+            WeightsCache::fetchWeights(ci_off, _oc, weights);
             LOG("Checking weights:");
 
             for (dimidx_t _h = 0; _h < k; _h++)
@@ -81,11 +81,11 @@ int WeightsCacheTest() {
 
 bool checkInputs(dimidx_t h, dimidx_t w, cidx_t ic, dimidx_t hh, dimidx_t ww,
                  cidx_t ci, data8_t in[9]) {
-    for (dimidx_t i = 0; i < 3; i++)
-        for (dimidx_t j = 0; j < 3; j++) {
+    for (dimidx_t i = 0; i < 4; i++)
+        for (dimidx_t j = 0; j < 4; j++) {
             dimidx_t _h = hh + i - 1;
             dimidx_t _w = ww + j - 1;
-            data8_t d = in[i * 3 + j];
+            data8_t d = in[i * 4 + j];
             if ((_h < 0 || _h >= h || _w < 0 || _w >= w)) {
                 if (d != 0)
                     return false;
@@ -128,16 +128,21 @@ int InputsCacheTest() {
     for (dimidx_t _w = 0; _w < w; _w++) {
         InputsCache::loadIC(0, _w, Inputs);
     }
-
-    data8_t in[9];
+    for (dimidx_t _w = 0; _w < w; _w++) {
+        InputsCache::loadIC(1, _w, Inputs);
+    }
+    data8_t in[16];
     for (dimidx_t _h = 0; _h < h; _h++) {
-        InputsCache::loadIC(_h + 1, 0, Inputs);
+        if (_h + 2 < h) {
+            InputsCache::loadIC(_h + 2, 0, Inputs);
+            InputsCache::loadIC(_h + 2, 1, Inputs);
+        }
         for (dimidx_t _w = 0; _w < w; _w++) {
-            if (_w + 1 < w) {
-                InputsCache::loadIC(_h + 1, _w + 1, Inputs);
+            if (_w + 2 < w) {
+                InputsCache::loadIC(_h + 2, _w + 2, Inputs);
             }
-            InputsCache::Index idx[9];
-            InputsCache::get9Index(_h, _w, idx);
+            InputsCache::Index idx[16];
+            InputsCache::get16Index(_h, _w, idx);
             for (cidx_t _ic = 0; _ic < ic; _ic++) {
                 InputsCache::fetchInputs(_ic, idx, in);
                 if (!checkInputs(h, w, ic, _h, _w, _ic, in)) {
@@ -173,7 +178,7 @@ bool checkConvResult(conv_t conv_cfg, data8_t* inputs, data16_t* weights,
                         for (dimidx_t fw = 0; fw < K; fw++) {
                             data8_t d;
                             data16_t w;
-                            dimidx_t ih = oh + fh, iw = ow + fw;
+                            dimidx_t ih = oh + fh - 1, iw = ow + fw - 1;
 
                             {
                                 int idx = ((ic * OC + oc) * K + fh) * K + fw;
@@ -203,7 +208,7 @@ bool checkConvResult(conv_t conv_cfg, data8_t* inputs, data16_t* weights,
 }
 
 int intergrationCosimTest() {
-    const kernel_t k = 1;
+    const kernel_t k = 3;
     const dimidx_t h = 32, w = 32;
     const cidx_t ic = 16, oc = 16;
     conv_t conv_cfg;
@@ -229,32 +234,34 @@ int intergrationCosimTest() {
         for (int _w = 0; _w < w; _w++)
             for (int _ic = 0; _ic < ic; _ic++) {
                 int idx = (_h * conv_cfg.w + _w) * conv_cfg.ic + _ic;
-                Inputs[idx] = data8_t(idx % 127);
+//                Inputs[idx] = data8_t(idx % 127);
+                  Inputs[idx] = data8_t(1);
             }
     for (int _ic = 0; _ic < ic; _ic++)
         for (int _oc = 0; _oc < oc; _oc++)
             for (int _h = 0; _h < k; _h++)
                 for (int _w = 0; _w < k; _w++) {
                     int idx = ((_ic * oc + _oc) * k + _h) * k + _w;
-                    Weights[idx] = data16_t(idx % 16);
+//                    Weights[idx] = data16_t(idx % 16);
+                    Weights[idx] = data16_t(1);
                 }
     for (int _oc = 0; _oc < oc; _oc++) {
         Post[_oc] = data32_t(1);
         Post[oc + _oc] = data32_t(1);
     }
-    //    fpga_top(conv_cfg, data32_t(0), Inputs, Weights, Post);
+    fpga_top(conv_cfg, Inputs, Weights, Post);
     // outputs
     data8_t* out = &Inputs[8 * 1024 * 1024];
     return checkConvResult(conv_cfg, Inputs, Weights, Post, out);
 }
 
 int UnitTest() {
-    if (WeightsCacheTest())
-        return -1;
-    //    if (InputsCacheTest())
-    //    	return -1;
-    //    if (!intergrationCosimTest())
-    //    	return -1;
+//    if (WeightsCacheTest())
+//        return -1;
+//	if (InputsCacheTest())
+//		return -1;
+	if (!intergrationCosimTest())
+		return -1;
     return 0;
 }
 

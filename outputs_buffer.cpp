@@ -38,9 +38,9 @@ void getOutputChannel(cidx_t co, bool clear, data32_t out[4]) {
 	for (int i=0; i<4; i++) {
 #pragma HLS PIPELINE
 		if (clear) {
-			out[i] = OBRAM[co][i];
-		} else {
 			out[i] = 0;
+		} else {
+			out[i] = OBRAM[co][i];
 		}
 	}
 }

@@ -8,11 +8,11 @@
 
 void fpga_top(conv_t conv,
 		volatile data8_t* SHM8_DRAM,
-		volatile data16_t* SHM16_DRAM,
+		volatile const data16_t* SHM16_DRAM,
 		volatile data32_t* SHM32_DRAM) {
-#pragma HLS INTERFACE m_axi depth=DRAM_DEPTH port=SHM8_DRAM offset=0 bundle=data8_bus register  max_read_burst_length=64 num_read_outstanding=32
-#pragma HLS INTERFACE m_axi depth=DRAM_DEPTH port=SHM16_DRAM offset=0 bundle=data16_bus register  max_read_burst_length=128 num_read_outstanding=32
-#pragma HLS INTERFACE m_axi depth=DRAM_DEPTH port=SHM32_DRAM offset=0 bundle=data32_bus register  max_read_burst_length=64 num_read_outstanding=32
+#pragma HLS INTERFACE m_axi depth=DRAM_DEPTH port=SHM8_DRAM offset=0 bundle=data8_bus register  max_read_burst_length=32 num_read_outstanding=32
+#pragma HLS INTERFACE m_axi depth=DRAM_DEPTH port=SHM16_DRAM offset=0 bundle=data16_bus register  max_read_burst_length=32 num_read_outstanding=32
+#pragma HLS INTERFACE m_axi depth=DRAM_DEPTH port=SHM32_DRAM offset=0 bundle=data32_bus register  max_read_burst_length=32 num_read_outstanding=32
 
 #pragma HLS INTERFACE s_axilite port = conv bundle = ctrl_bus register
 #pragma HLS INTERFACE s_axilite port = return bundle = ctrl_bus register

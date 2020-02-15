@@ -2,20 +2,10 @@
 #define _DTYPE_H_
 
 #include "cfg.hpp"
-
 #include <ap_int.h>
 #include <cassert>
 #include <cstdio>
-#include <hls_stream.h>
-
-using hls::stream;
-
-template <class T>  T reg(T x) {
-#pragma HLS pipeline
-#pragma HLS inline self off
-#pragma HLS interface ap_ctrl_none register port=return
-	return x;
-}
+#include <hls_video.h>
 
 // Index data type define
 typedef ap_uint<5> peidx_t;
@@ -43,6 +33,7 @@ typedef ap_uint<24> pixelperrow_t;
 typedef ap_int<24> coordinate_t;
 
 typedef ap_int<8> data8_t;
+typedef ap_int<10> data10_t;
 typedef ap_int<16> data16_t;
 typedef ap_int<32> data32_t;
 
@@ -52,7 +43,6 @@ struct conv_t {
     kernel_t kernel;
     stride_t stride;
     bool leaky;
-    bool reuse_weights;
     memaddr_t inputs;
     memaddr_t weights;
     memaddr_t outputs;

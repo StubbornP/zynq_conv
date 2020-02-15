@@ -29,6 +29,11 @@ void GgGt(const data16_t in[9], data16_t out[16]) {
     data16_t temp[12];
 #pragma HLS ARRAY_PARTITION variable=temp complete dim=0
 #pragma HLS RESOURCE variable=temp core=AddSubnS
+
+	for (int i=0; i<9; i++) {
+        LOG("WCache: loadWeights: %d\n", (short)in[i]);
+	}
+
     temp[0] = 2 * in[0];
     temp[1] = 2 * in[1];
     temp[2] = 2 * in[2];
@@ -64,23 +69,27 @@ void GgGt(const data16_t in[9], data16_t out[16]) {
     out[13] = temp[9] + temp[10] + temp[11];
     out[14] = temp[9] - temp[10] + temp[11];
     out[15] = 2 * temp[11];
+
+	for (int i=0; i<16; i++) {
+        LOG("WCache: transformWeights: %d\n", (short)out[i]);
+	}
 }
 
 // load layer weights from DRAM
-void loadWeights(volatile data16_t* SHM16_DRAM) {
+void loadWeights(volatile const data16_t* SHM16_DRAM) {
 #pragma HLS INLINE
     const conv_t conv_cfg = ConfigBoard::getConv();
     const cidx_t ic = conv_cfg.ic;
     const cidx_t oc = conv_cfg.oc;
 
-    const widx_t burst = 144;
+    const widx_t burst = 72;
     const widx_t words_per_oc = oc * 9;
     const memaddr_t weights = conv_cfg.weights;
 
     align = (oc + N_PE) - (oc % N_PE);
 
     widx_t ci_offset = 0;
-    volatile data16_t* DRAM = &SHM16_DRAM[weights];
+    volatile const data16_t* DRAM = &SHM16_DRAM[weights];
 
 WCACHE_LOAD:
     for (cidx_t ci = 0; ci < ic; ci++) {
@@ -88,13 +97,12 @@ WCACHE_LOAD:
         cidx_t co = 0;
         peidx_t peid;
         cacheline_idx_t line;
-        volatile data16_t* BASE;
         for (widx_t w = 0; w < words_per_oc;) {
 #pragma HLS LOOP_TRIPCOUNT MIN = 1 AVG = 5 MAX = 10
             flt_idx flt(0);
             data16_t temp[9];
 #pragma HLS ARRAY_PARTITION variable=temp complete dim=0
-            volatile data16_t* BASE = &DRAM[w];
+            volatile const data16_t* BASE = &DRAM[w];
             for (widx_t c = 0; c < burst; c++) {
 #pragma HLS PIPELINE
             	temp[flt] = BASE[c];
@@ -146,11 +154,7 @@ void weightsCacheTest(conv_t conv_cfg, volatile data16_t* SHARED_DRAM,
         for (int i = 0; i < 16; i++) {
             SHARED_DRAM[cfg.weights + addr_offset + i] = f[i];
         }
-        if (ConfigBoard::is1x1Conv()) {
-            channel_off += 1;
-        } else {
-            channel_off += 1;
-        }
+        channel_off += 1;
         addr_offset += 16;
     }
 }

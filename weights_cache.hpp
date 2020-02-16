@@ -4,7 +4,7 @@
 
 namespace WeightsCache {
 extern cidx_t align;
-extern data16_t WBRAM[1024][N_PE][16];
+extern data16_t WBRAM[1024][N_PE][9];
 void getIndex(const cidx_t oc, const widx_t ic_offset,
 		cacheline_idx_t &line, peidx_t &peid);
 // calculate input channel offset

@@ -2,6 +2,7 @@
 #include "config_board.hpp"
 #include "fpga_top.hpp"
 #include "inputs_cache.hpp"
+#include "postprocess.hpp"
 #include "weights_cache.hpp"
 
 #include <cstdlib>
@@ -80,7 +81,7 @@ int WeightsCacheTest() {
 }
 
 bool checkInputs(dimidx_t h, dimidx_t w, cidx_t ic, dimidx_t hh, dimidx_t ww,
-                 cidx_t ci, data8_t in[9]) {
+                 cidx_t ci, data10_t in[9]) {
     for (dimidx_t i = 0; i < 4; i++)
         for (dimidx_t j = 0; j < 4; j++) {
             dimidx_t _h = hh + i - 1;
@@ -131,7 +132,7 @@ int InputsCacheTest() {
     for (dimidx_t _w = 0; _w < w; _w++) {
         InputsCache::loadIC(1, _w, Inputs);
     }
-    data8_t in[16];
+    data10_t in[16];
     for (dimidx_t _h = 0; _h < h; _h++) {
         if (_h + 2 < h) {
             InputsCache::loadIC(_h + 2, 0, Inputs);
@@ -194,13 +195,9 @@ bool checkConvResult(conv_t conv_cfg, data8_t* inputs, data16_t* weights,
                             ref += d * w;
                         }
                 }
-                data32_t bias, scale;
-                scale = Post[oc];
-                bias = Post[OC + oc];
-                ref = (ref + bias) / scale;
-                LOG("checking conv result: %d, %d\n", (int)res,
-                    (int)data8_t(ref));
-                if (res != data8_t(ref)) {
+                data8_t ref8 = PostProcess::postProcess(oc, ref);
+                LOG("checking conv result: %d, %d\n", (int)res, (int)ref8);
+                if (res != ref8) {
                     return false;
                 }
             }
@@ -234,34 +231,34 @@ int intergrationCosimTest() {
         for (int _w = 0; _w < w; _w++)
             for (int _ic = 0; _ic < ic; _ic++) {
                 int idx = (_h * conv_cfg.w + _w) * conv_cfg.ic + _ic;
-//                Inputs[idx] = data8_t(idx % 127);
-                  Inputs[idx] = data8_t(1);
+                Inputs[idx] = data8_t(idx % 16);
+                //                  Inputs[idx] = data8_t(1);
             }
     for (int _ic = 0; _ic < ic; _ic++)
         for (int _oc = 0; _oc < oc; _oc++)
             for (int _h = 0; _h < k; _h++)
                 for (int _w = 0; _w < k; _w++) {
                     int idx = ((_ic * oc + _oc) * k + _h) * k + _w;
-//                    Weights[idx] = data16_t(idx % 16);
-                    Weights[idx] = data16_t(1);
+                    Weights[idx] = data16_t(idx % 16);
+                    //                    Weights[idx] = data16_t(1);
                 }
     for (int _oc = 0; _oc < oc; _oc++) {
-        Post[_oc] = data32_t(1);
+        Post[_oc] = data32_t(200);
         Post[oc + _oc] = data32_t(1);
     }
-    fpga_top(conv_cfg, Inputs, Weights, Post);
+    fpga_top_wino(conv_cfg, Inputs, Weights, Post);
     // outputs
     data8_t* out = &Inputs[8 * 1024 * 1024];
     return checkConvResult(conv_cfg, Inputs, Weights, Post, out);
 }
 
 int UnitTest() {
-//    if (WeightsCacheTest())
-//        return -1;
-//	if (InputsCacheTest())
-//		return -1;
-	if (!intergrationCosimTest())
-		return -1;
+    //    if (WeightsCacheTest())
+    //        return -1;
+    //	if (InputsCacheTest())
+    //		return -1;
+    if (!intergrationCosimTest())
+        return -1;
     return 0;
 }
 

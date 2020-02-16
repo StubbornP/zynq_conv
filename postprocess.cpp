@@ -8,7 +8,7 @@ data32_t BIAS[MAX_CHANNEL_OUT];
 void loadParams(volatile data32_t* SHARED_DRAM) {
 #pragma HLS INLINE
 #pragma HLS PIPELINE
-    const conv_t& conv_cfg = ConfigBoard::getConv();
+    const conv_t conv_cfg = ConfigBoard::getConv();
     const cidx_t oc = conv_cfg.oc;
     memaddr_t scale = conv_cfg.scale;
     memaddr_t bias = conv_cfg.bias;
@@ -35,21 +35,30 @@ void loadParams(volatile data32_t* SHARED_DRAM) {
 data8_t postProcess(cidx_t co, data32_t out) {
 #pragma HLS INLINE
 #pragma HLS PIPELINE
-    const conv_t& conv_cfg = ConfigBoard::getConv();
+    const conv_t conv_cfg = ConfigBoard::getConv();
+    const data8_t LB8(-128), UB8(127);
+    const data32_t LB32(-128), UB32(127);
     data8_t ret;
     data32_t act, scale, bias, quant;
-
-    if (conv_cfg.leaky && out < 0) {
-        act = out / 16;
-    } else {
-        act = out;
-    }
 
     scale = SCALE[co];
     bias = BIAS[co];
 
-    quant = (act + bias) / scale;
-    ret = data8_t(quant);
+    quant = (out) / scale;
+
+    if (conv_cfg.leaky && quant < 0) {
+        act = quant / 16;
+    } else {
+        act = quant;
+    }
+
+    if (quant > UB32) {
+        ret = UB8;
+    } else if (quant < LB32) {
+        ret = LB8;
+    } else {
+        ret = data8_t(act);
+    }
     return ret;
 }
 }; // namespace PostProcess

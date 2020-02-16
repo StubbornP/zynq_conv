@@ -2,7 +2,7 @@
 
 namespace ConfigBoard {
 conv_t conv_cfg;
-const conv_t& getConv() {
+const conv_t getConv() {
 #pragma HLS INLINE
     return conv_cfg;
 }

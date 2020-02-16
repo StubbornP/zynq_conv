@@ -35,12 +35,12 @@ void At_X_A(const data32_t in[16], data32_t out[4]) {
     out[2] += acc[4] + acc[5] + acc[6];
     out[3] += acc[5] - acc[6] - acc[7];
 
-//    for (int i = 0; i < 16; i++) {
-//        LOG("PE: maccOutput: %d\n", (int)in[i]);
-//    }
-//    for (int i = 0; i < 4; i++) {
-//        LOG("PE: transformOutput: %d\n", (int)out[i]);
-//    }
+    //     for (int i = 0; i < 16; i++) {
+    //         LOG("PE: maccOutput: %d\n", (int)in[i]);
+    //     }
+    //     for (int i = 0; i < 4; i++) {
+    //         LOG("PE: transformOutput: %d\n", (int)out[i]);
+    //     }
 }
 
 void macc(const data10_t in[16], const data16_t weights[16],
@@ -58,7 +58,7 @@ void macc(const data10_t in[16], const data16_t weights[16],
 void processOC(cidx_t ci, data10_t inputs[16]) {
 #pragma HLS INLINE
 #pragma HLS FUNCTION_INSTANTIATE variable = ci
-    const conv_t& conv_cfg = ConfigBoard::getConv();
+    const conv_t conv_cfg = ConfigBoard::getConv();
     const cidx_t oc = conv_cfg.oc;
     const widx_t ci_offset = ci * WeightsCache::align;
     const bool clear = (ci == 0);
@@ -83,7 +83,7 @@ L_PROCESS_OC:
 void processIC(dimidx_t h, dimidx_t w) {
 #pragma HLS INLINE
 #pragma HLS PIPELINE
-    const conv_t& conv_cfg = ConfigBoard::getConv();
+    const conv_t conv_cfg = ConfigBoard::getConv();
     const cidx_t conv_ic = conv_cfg.ic;
     InputsCache::Index idx[16];
     InputsCache::get16Index(h, w, idx);

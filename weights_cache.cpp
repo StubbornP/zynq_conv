@@ -4,7 +4,7 @@
 namespace WeightsCache {
 // BRAM cache
 cidx_t align;
-data16_t WBRAM[1024][N_PE][16];
+data16_t WBRAM[1024][N_PE][9];
 
 void getIndex(const cidx_t oc, const widx_t ic_offset, cacheline_idx_t& line,
               peidx_t& peid) {
@@ -64,12 +64,12 @@ void GgGt(const data16_t in[9], data16_t out[16]) {
     out[14] = temp[9] - temp[10] + temp[11];
     out[15] = 2 * temp[11];
 
-//    for (int i = 0; i < 9; i++) {
-//        LOG("WCache: loadWeights: %d\n", (short)in[i]);
-//    }
-//    for (int i = 0; i < 16; i++) {
-//        LOG("WCache: transformWeights: %d\n", (short)out[i]);
-//    }
+    //     for (int i = 0; i < 9; i++) {
+    //         LOG("WCache: loadWeights: %d\n", (short)in[i]);
+    //     }
+    //     for (int i = 0; i < 16; i++) {
+    //         LOG("WCache: transformWeights: %d\n", (short)out[i]);
+    //     }
 }
 
 // load layer weights from DRAM
@@ -91,25 +91,25 @@ void loadWeights(volatile const data16_t* SHM16_DRAM) {
 WCACHE_LOAD:
     for (cidx_t ci = 0; ci < ic; ci++) {
 #pragma HLS LOOP_TRIPCOUNT MIN = 16 AVG = 258 MAX = 520
-        cidx_t co = 0;
+        cidx_t co;
         peidx_t peid;
         cacheline_idx_t line;
+        getIndex(co = 0, ci_offset, line, peid);
         for (widx_t w = 0; w < words_per_oc;) {
 #pragma HLS LOOP_TRIPCOUNT MIN = 1 AVG = 5 MAX = 10
             flt_idx flt(0);
-            data16_t temp[9];
-            getIndex(co++, ci_offset, line, peid);
             volatile const data16_t* BASE = &DRAM[w];
-#pragma HLS ARRAY_PARTITION variable = temp complete dim = 0
             for (widx_t c = 0; c < burst; c++) {
 #pragma HLS PIPELINE
-                temp[flt] = BASE[c];
-                LOG("load weights[ci_offset: %d, co+1: %d, flt: %d], val: %d\n",
-                    (int)ci_offset, (int)co, (int)flt, (short)temp[flt]);
+            	data16_t temp;
+            	temp = BASE[c];
+            	WBRAM[line][peid][flt] = temp;
+                LOG("load weights[ci_offset: %d, co: %d, flt: %d], val: %d\n",
+                    (int)ci_offset, (int)co, (int)flt, (short)temp);
                 if (flt == 8) {
-                    GgGt(temp, WBRAM[line][peid]);
-                    getIndex(co++, ci_offset, line, peid);
+                    co++;
                     flt = 0;
+                    getIndex(co, ci_offset, line, peid);
                 } else {
                     flt++;
                 }
@@ -126,13 +126,17 @@ void fetchWeights(widx_t ic_offset, cidx_t oc, data16_t weights[16]) {
 #pragma HLS FUNCTION_INSTANTIATE variable = oc
 #pragma HLS PIPELINE II = 1
     // Calculate Memory Address
-    peidx_t peid;
+	peidx_t peid;
     cacheline_idx_t line;
+    data16_t temp[9];
+#pragma HLS ARRAY_PARTITION variable = temp complete dim = 0
     getIndex(oc, ic_offset, line, peid);
-    for (int i = 0; i < 16; i++) {
+
+    for (int i = 0; i < 9; i++) {
 #pragma HLS UNROLL
-        weights[i] = WBRAM[line][peid][i];
+        temp[i] = WBRAM[line][peid][i];
     }
+    GgGt(temp, weights);
     LOG("ci_offset: %d, co: %d\n", (int)ic_offset, (int)oc);
 }
 
@@ -143,7 +147,7 @@ void weightsCacheTest(conv_t conv_cfg, volatile data16_t* SHARED_DRAM,
     if (cmd == 0) {
         WeightsCache::loadWeights(SHARED_DRAM);
     } else {
-        const conv_t& cfg = ConfigBoard::getConv();
+        const conv_t cfg = ConfigBoard::getConv();
         static widx_t channel_off = 0, addr_offset = 0;
         data16_t f[9];
         cidx_t ic = channel_off / cfg.oc;

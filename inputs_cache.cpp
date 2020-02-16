@@ -2,22 +2,23 @@
 #include "config_board.hpp"
 
 namespace InputsCache {
-imidx_t dram_offset;
-data8_t IBRAM[8][4][4096];
+imidx_t WStride;
+data8_t IBRAM[5][4][4096];
 void reset() {
 #pragma HLS INLINE
     const conv_t conv_cfg = ConfigBoard::getConv();
-    dram_offset = conv_cfg.inputs;
+    WStride = conv_cfg.w * conv_cfg.ic;
 }
 void getIndex(dimidx_t h, dimidx_t w, Index& idx) {
 #pragma HLS INLINE
-#pragma HLS ARRAY_PARTITION variable = IBRAM complete dim = 1          // h
-#pragma HLS ARRAY_PARTITION variable = IBRAM complete dim = 2          // w
+#pragma HLS ARRAY_PARTITION variable = IBRAM complete dim = 1 // h
+#pragma HLS ARRAY_PARTITION variable = IBRAM complete dim = 2 // w
 // #pragma HLS ARRAY_PARTITION variable = IBRAM cyclic dim = 3 factor = 2 // ci
-#pragma HLS RESOURCE variable = IBRAM core = RAM_T2P_BRAM latency=1
+#pragma HLS RESOURCE variable = IBRAM core = RAM_T2P_BRAM latency = 1
     const conv_t conv_cfg = ConfigBoard::getConv();
     const cidx_t IC = conv_cfg.ic;
-    idx.h = h % 8;
+    const dimidx_t hd5 = h/5;
+    idx.h = h - hd5 * 5;
     idx.w = w % 4;
     idx.c = (w / 4) * IC;
     LOG("ICache: getIndex(h: %d, w: %d): ch: %d, cw: %d, cc: %d\n", (int)h,
@@ -41,7 +42,7 @@ void get16Index(dimidx_t h, dimidx_t w, Index idx[16]) {
             } else {
                 getIndex(hh, ww, idx[pix_off]);
             }
-            pix_off ++;
+            pix_off++;
         }
     }
 }
@@ -50,12 +51,13 @@ void loadIC(dimidx_t h, dimidx_t w, volatile data8_t* SHM8_DRAM) {
 #pragma HLS PIPELINE
     const conv_t conv_cfg = ConfigBoard::getConv();
     const cidx_t IC = conv_cfg.ic;
+    imidx_t im_offset = h * conv_cfg.w + w;
+    memaddr_t dram_addr = conv_cfg.inputs + im_offset * IC;
     Index idx;
     getIndex(h, w, idx);
     data8_t* BRAM = &IBRAM[idx.h][idx.w][idx.c];
-    volatile data8_t* DRAM = &SHM8_DRAM[dram_offset];
+    volatile data8_t* DRAM = &SHM8_DRAM[dram_addr];
     copy_dram<data8_t, 32>(BRAM, DRAM, IC);
-    dram_offset += IC;
 }
 void loadW(volatile data8_t* SHM8_DRAM) {
 #pragma HLS INLINE
@@ -117,9 +119,12 @@ void BtdB(data8_t in[16], data10_t out[16]) {
     out[13] = temp[13] + temp[14];
     out[14] = temp[14] - temp[13];
     out[15] = temp[13] - temp[15];
-//    for (int i = 0; i < 16; i++) {
-//        LOG("ICache: transformInputs: %d\n", (char)out[i]);
-//    }
+    //     for (int i = 0; i < 16; i++) {
+    //         LOG("ICache: loaded: %d\n", (char)in[i]);
+    //     }
+    //     for (int i = 0; i < 16; i++) {
+    //         LOG("ICache: transformInputs: %d\n", (char)out[i]);
+    //     }
 }
 
 void fetchInputs(cidx_t ci, const Index idx[16], data10_t inputs[16]) {

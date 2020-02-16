@@ -18,7 +18,7 @@ void fpga_top_wino(conv_t conv,
 #pragma HLS INTERFACE s_axilite port = return bundle = ctrl_bus register
 
     ConfigBoard::setConv(conv);
-    const conv_t& conv_cfg = ConfigBoard::getConv();
+    const conv_t conv_cfg = ConfigBoard::getConv();
     const dimidx_t H = conv_cfg.h;
     const dimidx_t W = conv_cfg.w;
     const cidx_t OC = conv_cfg.oc;
@@ -28,30 +28,20 @@ void fpga_top_wino(conv_t conv,
     PostProcess::loadParams(SHM32_DRAM);
     OutputsBuffer::setup();
 
-    for (coordinate_t w = 0; w < W; w++) {
+    for (dimidx_t w = 0; w < W; w++) {
 #pragma HLS LOOP_TRIPCOUNT min = 14 max = 416 avg = 45
         InputsCache::loadIC(0, w, SHM8_DRAM);
-    }
-    for (coordinate_t w = 0; w < W; w++) {
-#pragma HLS LOOP_TRIPCOUNT min = 14 max = 416 avg = 45
         InputsCache::loadIC(1, w, SHM8_DRAM);
     }
 TOP_H:
     for (dimidx_t h = 0, lh=2; h < H; h++, lh++) {
 #pragma HLS LOOP_TRIPCOUNT min = 8 max = 416 avg = 45
-    	bool load_h = lh<H;
-        if (lh<H) {
-            InputsCache::loadIC(lh, 0, SHM8_DRAM);
-            InputsCache::loadIC(lh, 1, SHM8_DRAM);
-        }
-
+        InputsCache::loadIC(lh, 0, SHM8_DRAM);
+        InputsCache::loadIC(lh, 1, SHM8_DRAM);
     TOP_W:
         for (dimidx_t w = 0, lw=2; w < W; w++, lw++) {
 #pragma HLS LOOP_TRIPCOUNT min = 8 max = 416 avg = 45
-        	bool load_w = lw<W;
-            if (load_h && load_w) {
-                InputsCache::loadIC(lh, lw, SHM8_DRAM);
-            }
+            InputsCache::loadIC(lh, lw, SHM8_DRAM);
             if (h % 2 | w % 2)
             	continue;
             OutputsBuffer::setDRAMAddress(h, w);
@@ -70,7 +60,7 @@ TOP_H:
 //#pragma HLS INTERFACE s_axilite port = return bundle = ctrl_bus register
 //
 //    ConfigBoard::setConv(conv);
-//    const conv_t& conv_cfg = ConfigBoard::getConv();
+//    const conv_t conv_cfg = ConfigBoard::getConv();
 //    WeightsCache::weightsCacheTest(conv_cfg, SHM16_DRAM, cmd);
 ////    	InputsCache::inputsCacheTest(conv, SHARED_DRAM, cmd);
 //}

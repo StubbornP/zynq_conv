@@ -4,7 +4,7 @@
 #include "dtypes.hpp"
 
 namespace ConfigBoard {
-const conv_t& getConv();
+const conv_t getConv();
 void setConv(conv_t& c);
 }; // namespace ConfigBoard
 

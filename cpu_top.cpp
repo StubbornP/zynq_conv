@@ -3,6 +3,7 @@
 #include "fpga_top.hpp"
 #include "inputs_cache.hpp"
 #include "weights_cache.hpp"
+#include "postprocess.hpp"
 
 #include <cstdlib>
 
@@ -189,13 +190,11 @@ bool checkConvResult(conv_t conv_cfg, data8_t* inputs, data16_t* weights,
                             ref += d * w;
                         }
                 }
-                data32_t bias, scale;
-                scale = Post[oc];
-                bias = Post[OC + oc];
-                ref = (ref + bias) / scale;
+                data8_t ref8;
+                ref8 = PostProcess::postProcess(oc, ref);
                 LOG("checking conv result: %d, %d\n", (int)res,
-                    (int)data8_t(ref));
-                if (res != data8_t(ref)) {
+                    (int)ref8);
+                if (res != ref8) {
                     return false;
                 }
             }
@@ -229,7 +228,7 @@ int intergrationCosimTest() {
         for (int _w = 0; _w < w; _w++)
             for (int _ic = 0; _ic < ic; _ic++) {
                 int idx = (_h * conv_cfg.w + _w) * conv_cfg.ic + _ic;
-                Inputs[idx] = data8_t(idx % 127);
+                Inputs[idx] = data8_t(idx % 16);
             }
     for (int _ic = 0; _ic < ic; _ic++)
         for (int _oc = 0; _oc < oc; _oc++)
@@ -239,8 +238,8 @@ int intergrationCosimTest() {
                     Weights[idx] = data16_t(idx % 16);
                 }
     for (int _oc = 0; _oc < oc; _oc++) {
-        Post[_oc] = data32_t(1);
-        Post[oc + _oc] = data32_t(1);
+        Post[_oc] = data32_t(200);
+        Post[oc + _oc] = data32_t(200);
     }
     fpga_top(conv_cfg, Inputs, Weights, Post);
     // outputs

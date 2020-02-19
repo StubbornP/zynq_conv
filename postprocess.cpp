@@ -39,17 +39,24 @@ data8_t postProcess(cidx_t co, data32_t out) {
 	data8_t ret;
 	data32_t act, scale, bias, quant;
 
-	if (conv_cfg.leaky && out < 0) {
-		act = out / 16;
-	} else {
-		act = out;
-	}
-
 	scale = SCALE[co];
 	bias = BIAS[co];
+	// bn and quant
+	quant = (out + bias) / scale;
 
-	quant = (act + bias) / scale;
-	ret = data8_t(quant);
+	if (conv_cfg.leaky && quant < 0) {
+		act = quant / 16;
+	} else {
+		act = quant;
+	}
+
+	if (act > data32_t(127)) {
+		ret = data8_t(127);
+	} else if (act<data32_t(-128)){
+		ret = data8_t(-128);
+	} else {
+		ret = data8_t(act);
+	}
 	return ret;
 }
 };

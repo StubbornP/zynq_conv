@@ -6,6 +6,7 @@ namespace OutputsBuffer {
 data32_t OBRAM[512][4];
 dimidx_t OW;
 imidx_t DRAMAddr[4];
+bool is_stride_2;
 
 void setup() {
 #pragma HLS ARRAY_PARTITION variable=OBRAM cyclic dim=1 factor=N_PE
@@ -13,18 +14,21 @@ void setup() {
 #pragma HLS RESOURCE variable=OBRAM core=RAM_T2P_BRAM latency=1
 	const conv_t conv_cfg = ConfigBoard::getConv();
 	const dimidx_t w = conv_cfg.w;
-	OW = (conv_cfg.stride==2)?dimidx_t(w+1/2):w;
+	is_stride_2 = conv_cfg.stride==2;
+	OW = (is_stride_2)?dimidx_t(w+1/2):w;
 }
 
-void setDRAMAddress(dimidx_t oh, dimidx_t ow) {
+void setDRAMAddress(dimidx_t h, dimidx_t w) {
 #pragma HLS INLINE
 #pragma HLS PIPELINE
 	const conv_t conv_cfg = ConfigBoard::getConv();
 	const memaddr_t outputs = conv_cfg.outputs;
 	const cidx_t oc = conv_cfg.oc;
     // Calculate Output Memory Address
-	imidx_t px_base = oh * OW + ow;
-//	px_base = outputs + oh * WStride + ow * oc;
+	imidx_t px_base = h * OW + w;
+	if (is_stride_2) {
+		px_base = px_base/2;
+	}
     DRAMAddr[0] = px_base;
     DRAMAddr[1] = px_base + 1;
     DRAMAddr[2] = px_base + OW;
@@ -59,6 +63,9 @@ void flushOutputChannel(volatile data8_t* SHARED_DRAM) {
     const cidx_t OC = conv_cfg.oc;
 	const memaddr_t outputs = conv_cfg.outputs;
     for (int i=0; i<4; i++) {
+    	if (is_stride_2 && i>0) {
+    		break;
+    	}
     	memaddr_t addr = outputs + DRAMAddr[i] * OC;
     	volatile data8_t *Out = &SHARED_DRAM[addr];
         for (cidx_t co=0; co<OC; co++) {

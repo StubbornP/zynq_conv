@@ -7,10 +7,9 @@
 #include <cstdio>
 //#include <hls_video.h>
 
-template<class T>
-T reg(T in) {
+template <class T> T reg(T in) {
 #pragma HLS inline off
-#pragma HLS INTERFACE ap_none port=return register
+#pragma HLS INTERFACE ap_none port = return register
     return in;
 }
 
@@ -57,33 +56,31 @@ struct conv_t {
     memaddr_t scale;
 
     conv_t(int h, int w, int ic, int oc, int k, int s = 1, bool leaky = false,
-		   unsigned int inputs = 0ul, unsigned int weights = 0ul, unsigned int outputs = 0ul,
-           unsigned int bias = 0ul, unsigned int scale = 0ul)
-        : h(h), w(w), ic(ic), oc(oc),
-		  kernel(k), stride(s), leaky(leaky),
-		  inputs(inputs), weights(weights), outputs(outputs),
-		  bias(bias), scale(scale) {}
+           unsigned int inputs = 0ul, unsigned int weights = 0ul,
+           unsigned int outputs = 0ul, unsigned int bias = 0ul,
+           unsigned int scale = 0ul)
+        : h(h), w(w), ic(ic), oc(oc), kernel(k), stride(s), leaky(leaky),
+          inputs(inputs), weights(weights), outputs(outputs), bias(bias),
+          scale(scale) {}
 
     conv_t()
-        : h(0), w(0), ic(0), oc(0),
-		  kernel(0), stride(0), leaky(false),
-          inputs(0), weights(0), outputs(0),
-		  bias(0), scale(0) {}
+        : h(0), w(0), ic(0), oc(0), kernel(0), stride(0), leaky(false),
+          inputs(0), weights(0), outputs(0), bias(0), scale(0) {}
 };
 
 #define LOG(...) printf("LOG %s:%d ", __FILE__, __LINE__), printf(__VA_ARGS__)
 
-template<typename T, size_t burst>
-void copy_dram(T *dst, volatile T *src, int n) {
+template <typename T, size_t burst>
+void copy_dram(T* dst, volatile T* src, int n) {
 #pragma HLS INLINE
-        for (int i=0; i<n; i+=burst) {
-                T *BRAM = &dst[i];
-                volatile T *DRAM = &src[i];
-                for (int c=0; c<burst; c++) {
+    for (int i = 0; i < n; i += burst) {
+        T* BRAM = &dst[i];
+        volatile T* DRAM = &src[i];
+        for (int c = 0; c < burst; c++) {
 #pragma HLS PIPELINE
-                        BRAM[c] = DRAM[c];
-                }
+            BRAM[c] = DRAM[c];
         }
+    }
 }
 
 #endif

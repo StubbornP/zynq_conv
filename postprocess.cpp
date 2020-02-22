@@ -44,7 +44,7 @@ data8_t postProcess(cidx_t co, data32_t out) {
     scale = SCALE[co];
     bias = BIAS[co];
 
-    quant = (out) / scale;
+    quant = (out + bias) / scale;
 
     if (conv_cfg.leaky && quant < 0) {
         act = quant / 16;

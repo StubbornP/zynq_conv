@@ -3,7 +3,7 @@
 
 namespace InputsCache {
 imidx_t WStride;
-data8_t IBRAM[5][4][4096];
+data8_t IBRAM[4][4][4096];
 void reset() {
 #pragma HLS INLINE
     const conv_t conv_cfg = ConfigBoard::getConv();
@@ -17,8 +17,7 @@ void getIndex(dimidx_t h, dimidx_t w, Index& idx) {
 #pragma HLS RESOURCE variable = IBRAM core = RAM_T2P_BRAM latency = 1
     const conv_t conv_cfg = ConfigBoard::getConv();
     const cidx_t IC = conv_cfg.ic;
-    const dimidx_t hd5 = h/5;
-    idx.h = h - hd5 * 5;
+    idx.h = h % 4;
     idx.w = w % 4;
     idx.c = (w / 4) * IC;
     LOG("ICache: getIndex(h: %d, w: %d): ch: %d, cw: %d, cc: %d\n", (int)h,
@@ -80,7 +79,7 @@ ICACHE_LOAD_W:
 //		⎣0   0  0  -1 ⎦
 void BtdB(data8_t in[16], data10_t out[16]) {
 #pragma HLS INLINE
-    data8_t temp[16];
+    data10_t temp[16];
 #pragma HLS ARRAY_PARTITION variable = temp complete dim = 0
     // Btd
     temp[0] = in[0] - in[8];

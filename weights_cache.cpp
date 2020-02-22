@@ -17,13 +17,13 @@ void getIndex(const cidx_t oc, const widx_t ic_offset, cacheline_idx_t& line,
 }
 // transform
 //
-//			⎡ 1    0     0 ⎤
-//			⎢              ⎥
-//			⎢1/2  1/2   1/2⎥
-//   G = 	⎢              ⎥
-//			⎢1/2  -1/2  1/2⎥
-//			⎢              ⎥
-//			⎣ 0    0     1 ⎦
+//		⎡ 1    0     0 ⎤
+//		⎢              ⎥
+//		⎢1/2  1/2   1/2⎥
+//	G =	⎢              ⎥
+//		⎢1/2  -1/2  1/2⎥
+//		⎢              ⎥
+//		⎣ 0    0     1 ⎦
 void GgGt(const data16_t in[9], data16_t out[16]) {
 #pragma HLS INLINE
     data16_t temp[12];
@@ -101,9 +101,9 @@ WCACHE_LOAD:
             volatile const data16_t* BASE = &DRAM[w];
             for (widx_t c = 0; c < burst; c++) {
 #pragma HLS PIPELINE
-            	data16_t temp;
-            	temp = BASE[c];
-            	WBRAM[line][peid][flt] = temp;
+                data16_t temp;
+                temp = BASE[c];
+                WBRAM[line][peid][flt] = temp;
                 LOG("load weights[ci_offset: %d, co: %d, flt: %d], val: %d\n",
                     (int)ci_offset, (int)co, (int)flt, (short)temp);
                 if (flt == 8) {
@@ -126,7 +126,7 @@ void fetchWeights(widx_t ic_offset, cidx_t oc, data16_t weights[16]) {
 #pragma HLS FUNCTION_INSTANTIATE variable = oc
 #pragma HLS PIPELINE II = 1
     // Calculate Memory Address
-	peidx_t peid;
+    peidx_t peid;
     cacheline_idx_t line;
     data16_t temp[9];
 #pragma HLS ARRAY_PARTITION variable = temp complete dim = 0

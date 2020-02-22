@@ -206,8 +206,8 @@ bool checkConvResult(conv_t conv_cfg, data8_t* inputs, data16_t* weights,
 
 int intergrationCosimTest() {
     const kernel_t k = 3;
-    const dimidx_t h = 32, w = 32;
-    const cidx_t ic = 16, oc = 16;
+    const dimidx_t h = 64, w = 64;
+    const cidx_t ic = 64, oc = 64;
     conv_t conv_cfg;
 
     conv_cfg.h = h;
@@ -231,7 +231,7 @@ int intergrationCosimTest() {
         for (int _w = 0; _w < w; _w++)
             for (int _ic = 0; _ic < ic; _ic++) {
                 int idx = (_h * conv_cfg.w + _w) * conv_cfg.ic + _ic;
-                Inputs[idx] = data8_t(idx % 16);
+                Inputs[idx] = data8_t(idx % 127);
                 //                  Inputs[idx] = data8_t(1);
             }
     for (int _ic = 0; _ic < ic; _ic++)
@@ -239,11 +239,11 @@ int intergrationCosimTest() {
             for (int _h = 0; _h < k; _h++)
                 for (int _w = 0; _w < k; _w++) {
                     int idx = ((_ic * oc + _oc) * k + _h) * k + _w;
-                    Weights[idx] = data16_t(idx % 16);
+                    Weights[idx] = data16_t(idx % 127);
                     //                    Weights[idx] = data16_t(1);
                 }
     for (int _oc = 0; _oc < oc; _oc++) {
-        Post[_oc] = data32_t(200);
+        Post[_oc] = data32_t(20480);
         Post[oc + _oc] = data32_t(1);
     }
     fpga_top_wino(conv_cfg, Inputs, Weights, Post);

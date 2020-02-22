@@ -34,16 +34,16 @@ void fpga_top_wino(conv_t conv,
         InputsCache::loadIC(1, w, SHM8_DRAM);
     }
 TOP_H:
-    for (dimidx_t h = 0, lh=2; h < H; h++, lh++) {
+    for (dimidx_t h = 0, lh = 2; h < H; h++, lh++) {
 #pragma HLS LOOP_TRIPCOUNT min = 8 max = 416 avg = 45
         InputsCache::loadIC(lh, 0, SHM8_DRAM);
         InputsCache::loadIC(lh, 1, SHM8_DRAM);
     TOP_W:
-        for (dimidx_t w = 0, lw=2; w < W; w++, lw++) {
+        for (dimidx_t w = 0, lw = 2; w < W; w++, lw++) {
 #pragma HLS LOOP_TRIPCOUNT min = 8 max = 416 avg = 45
             InputsCache::loadIC(lh, lw, SHM8_DRAM);
             if (h % 2 | w % 2)
-            	continue;
+                continue;
             OutputsBuffer::setDRAMAddress(h, w);
             ProcessElement::processIC(h, w);
             OutputsBuffer::flushOutputChannel(SHM8_DRAM);

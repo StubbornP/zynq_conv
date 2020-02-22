@@ -95,29 +95,4 @@ void fetch9Weights(widx_t ic_offset, cidx_t oc, data16_t weights[9]) {
     }
     LOG("ci_offset: %d, co: %d\n", (int)ic_offset, (int)oc);
 }
-
-void weightsCacheTest(conv_t conv_cfg, volatile data16_t* SHARED_DRAM,
-                      data32_t cmd) {
-#pragma HLS INLINE
-    ConfigBoard::setConv(conv_cfg);
-    if (cmd == 0) {
-        WeightsCache::loadWeights(SHARED_DRAM);
-    } else {
-        const conv_t& cfg = ConfigBoard::getConv();
-        static widx_t channel_off = 0, addr_offset = 0;
-        data16_t f[9];
-        cidx_t ic = channel_off / cfg.oc;
-        cidx_t oc = channel_off % cfg.oc;
-        WeightsCache::fetch9Weights(ic, oc, f);
-        for (int i = 0; i < 9; i++) {
-            SHARED_DRAM[cfg.weights + addr_offset + i] = f[i];
-        }
-        if (ConfigBoard::is1x1Conv()) {
-            channel_off += 1;
-        } else {
-            channel_off += 1;
-        }
-        addr_offset += 9;
-    }
-}
 }; // namespace WeightsCache

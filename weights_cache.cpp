@@ -18,7 +18,7 @@ void getIndex(const cidx_t oc, const widx_t ic_offset, cacheline_idx_t& line,
 }
 
 // load layer weights from DRAM
-void loadWeights(volatile data8_t* SHM8_DRAM) {
+void loadWeights(volatile const data8_t* SHM8_DRAM) {
 #pragma HLS INLINE
     const conv_t conv_cfg = ConfigBoard::getConv();
     const cidx_t ic = conv_cfg.ic;
@@ -33,7 +33,7 @@ void loadWeights(volatile data8_t* SHM8_DRAM) {
     align = (oc + N_PE) - (oc % N_PE);
 
     widx_t ci_offset = 0;
-    volatile data8_t* DRAM = &SHM8_DRAM[weights];
+    volatile const data8_t* DRAM = &SHM8_DRAM[weights];
 
 WCACHE_LOAD:
     for (cidx_t ci = 0; ci < ic; ci++) {
@@ -48,7 +48,7 @@ WCACHE_LOAD:
         for (widx_t w = 0; w < words_per_oc;) {
 #pragma HLS LOOP_TRIPCOUNT MIN = 1 AVG = 5 MAX = 10
             flt_idx flt(0);
-            volatile data8_t* BASE = &DRAM[w];
+            volatile const data8_t* BASE = &DRAM[w];
             for (widx_t c = 0; c < burst; c++) {
 #pragma HLS PIPELINE
                 data8_t temp = BASE[c];

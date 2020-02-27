@@ -10,7 +10,7 @@ void getIndex(const cidx_t oc, const widx_t ic_offset,
 // calculate input channel offset
 widx_t getInputChannelOffset(const cidx_t ic);
 // load weights to BRAM
-void loadWeights(volatile data8_t *SHARED_DRAM);
+void loadWeights(volatile const data8_t *SHARED_DRAM);
 // fetch 9 weights from BRAM
 void fetch9Weights(widx_t ic_offset, cidx_t oc, data8_t weights[9]);
 };

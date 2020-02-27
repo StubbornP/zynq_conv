@@ -8,7 +8,7 @@
 #include <cstdlib>
 
 data8_t Inputs[1024 * 1024 * 16];
-data16_t Weights[1024 * 1024 * 4];
+data8_t Weights[1024 * 1024 * 4];
 data32_t Post[1024 * 1024 * 4];
 
 int WeightsCacheInputChannelOffsetTest(kernel_t k) {
@@ -44,7 +44,7 @@ int WeightsCacheInputChannelOffsetTest(kernel_t k) {
     for (cidx_t _ic = 0; _ic < ic; _ic++) {
         widx_t ci_off = _ic * WeightsCache::align;
         for (cidx_t _oc = 0; _oc < oc; _oc++) {
-            data16_t weights[9];
+            data8_t weights[9];
             WeightsCache::fetch9Weights(ci_off, _oc, weights);
             LOG("Checking weights:");
 
@@ -153,7 +153,7 @@ int InputsCacheTest() {
     return 0;
 }
 
-bool checkConvResult(conv_t conv_cfg, data8_t* inputs, data16_t* weights,
+bool checkConvResult(conv_t conv_cfg, data8_t* inputs, data8_t* weights,
                      data32_t* Post, data8_t* Out) {
 
     dimidx_t H = conv_cfg.h, W = conv_cfg.w;
@@ -235,7 +235,7 @@ int intergrationCosimTest() {
             for (int _h = 0; _h < k; _h++)
                 for (int _w = 0; _w < k; _w++) {
                     int idx = ((_ic * oc + _oc) * k + _h) * k + _w;
-                    Weights[idx] = data16_t(idx % 16);
+                    Weights[idx] = data8_t(idx % 16);
                 }
     for (int _oc = 0; _oc < oc; _oc++) {
         Post[_oc] = data32_t(200);

@@ -5,15 +5,15 @@ namespace PostProcess {
 data32_t SCALE[MAX_CHANNEL_OUT];
 data32_t BIAS[MAX_CHANNEL_OUT];
 
-void loadParams(volatile data32_t* SHARED_DRAM) {
+void loadParams(volatile const data32_t* SHARED_DRAM) {
 #pragma HLS INLINE
 #pragma HLS PIPELINE
     const conv_t conv_cfg = ConfigBoard::getConv();
     const cidx_t oc = conv_cfg.oc;
     memaddr_t scale = conv_cfg.scale;
     memaddr_t bias = conv_cfg.bias;
-    volatile data32_t* SCALE_DRAM = &SHARED_DRAM[scale];
-    volatile data32_t* BIAS_DRAM = &SHARED_DRAM[bias];
+    volatile const data32_t* SCALE_DRAM = &SHARED_DRAM[scale];
+    volatile const data32_t* BIAS_DRAM = &SHARED_DRAM[bias];
 
     copy_dram<data32_t, 32>(SCALE, SCALE_DRAM, oc);
     copy_dram<data32_t, 32>(BIAS, BIAS_DRAM, oc);

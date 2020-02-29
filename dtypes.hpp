@@ -71,11 +71,11 @@ struct conv_t {
 #define LOG(...) printf("LOG %s:%d ", __FILE__, __LINE__), printf(__VA_ARGS__)
 
 template <typename T, size_t burst>
-void copy_dram(T* dst, volatile T* src, int n) {
+void copy_dram(T* dst, volatile const T* src, int n) {
 #pragma HLS INLINE
     for (int i = 0; i < n; i += burst) {
         T* BRAM = &dst[i];
-        volatile T* DRAM = &src[i];
+        volatile const T* DRAM = &src[i];
         for (int c = 0; c < burst; c++) {
 #pragma HLS PIPELINE
             BRAM[c] = DRAM[c];

@@ -4,7 +4,7 @@
 #include "dtypes.hpp"
 
 namespace PostProcess {
-void loadParams(volatile data32_t* SHARED_DRAM);
+void loadParams(volatile const data32_t* SHARED_DRAM);
 data8_t postProcess(cidx_t co, data32_t out);
 } // namespace PostProcess
 

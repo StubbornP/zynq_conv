@@ -4,14 +4,14 @@
 namespace WeightsCache {
 // BRAM cache
 cidx_t align;
-data16_t WBRAM[1024][N_PE][9];
+data10_t WBRAM[1024][N_PE][16];
 
 void getIndex(const cidx_t oc, const widx_t ic_offset, cacheline_idx_t& line,
               peidx_t& peid) {
 #pragma HLS INLINE
 #pragma HLS ARRAY_PARTITION variable = WBRAM complete dim = 2 // peid
 #pragma HLS ARRAY_PARTITION variable = WBRAM complete dim = 3 // peid
-#pragma HLS RESOURCE variable = WBRAM core = RAM_T2P_BRAM latency = 1
+#pragma HLS RESOURCE variable = WBRAM core = RAM_S2P_BRAM latency = 1
     peid = oc % N_PE;
     line = (ic_offset + oc) / N_PE;
 }
@@ -24,9 +24,9 @@ void getIndex(const cidx_t oc, const widx_t ic_offset, cacheline_idx_t& line,
 //		⎢1/2  -1/2  1/2⎥
 //		⎢              ⎥
 //		⎣ 0    0     1 ⎦
-void GgGt(const data16_t in[9], data16_t out[16]) {
+void GgGt(const data8_t in[9], data10_t out[16]) {
 #pragma HLS INLINE
-    data16_t temp[12];
+    data10_t temp[12];
 #pragma HLS ARRAY_PARTITION variable = temp complete dim = 0
     temp[0] = 2 * in[0];
     temp[1] = 2 * in[1];
@@ -73,7 +73,7 @@ void GgGt(const data16_t in[9], data16_t out[16]) {
 }
 
 // load layer weights from DRAM
-void loadWeights(volatile const data16_t* SHM16_DRAM) {
+void loadWeights(volatile const data8_t* SHM8_DRAM) {
 #pragma HLS INLINE
     const conv_t conv_cfg = ConfigBoard::getConv();
     const cidx_t ic = conv_cfg.ic;
@@ -86,7 +86,7 @@ void loadWeights(volatile const data16_t* SHM16_DRAM) {
     align = (oc + N_PE) - (oc % N_PE);
 
     widx_t ci_offset = 0;
-    volatile const data16_t* DRAM = &SHM16_DRAM[weights];
+    volatile const data8_t* DRAM = &SHM8_DRAM[weights];
 
 WCACHE_LOAD:
     for (cidx_t ci = 0; ci < ic; ci++) {
@@ -98,15 +98,16 @@ WCACHE_LOAD:
         for (widx_t w = 0; w < words_per_oc;) {
 #pragma HLS LOOP_TRIPCOUNT MIN = 1 AVG = 5 MAX = 10
             flt_idx flt(0);
-            volatile const data16_t* BASE = &DRAM[w];
+            data8_t temp[9];
+#pragma HLS ARRAY_PARTITION variable = temp complete dim = 0
+            volatile const data8_t* BASE = &DRAM[w];
             for (widx_t c = 0; c < burst; c++) {
 #pragma HLS PIPELINE
-                data16_t temp;
-                temp = BASE[c];
-                WBRAM[line][peid][flt] = temp;
+                temp[flt] = BASE[c];
                 LOG("load weights[ci_offset: %d, co: %d, flt: %d], val: %d\n",
-                    (int)ci_offset, (int)co, (int)flt, (short)temp);
+                    (int)ci_offset, (int)co, (int)flt, (char)temp[flt]);
                 if (flt == 8) {
+                    GgGt(temp, WBRAM[line][peid]);
                     co++;
                     flt = 0;
                     getIndex(co, ci_offset, line, peid);
@@ -121,26 +122,23 @@ WCACHE_LOAD:
     }
 }
 
-void fetchWeights(widx_t ic_offset, cidx_t oc, data16_t weights[16]) {
+void fetchWeights(widx_t ic_offset, cidx_t oc, data10_t weights[16]) {
 #pragma HLS INLINE
 #pragma HLS FUNCTION_INSTANTIATE variable = oc
 #pragma HLS PIPELINE II = 1
     // Calculate Memory Address
     peidx_t peid;
     cacheline_idx_t line;
-    data16_t temp[9];
-#pragma HLS ARRAY_PARTITION variable = temp complete dim = 0
     getIndex(oc, ic_offset, line, peid);
 
     for (int i = 0; i < 9; i++) {
 #pragma HLS UNROLL
-        temp[i] = WBRAM[line][peid][i];
+        weights[i] = WBRAM[line][peid][i];
     }
-    GgGt(temp, weights);
     LOG("ci_offset: %d, co: %d\n", (int)ic_offset, (int)oc);
 }
 
-void weightsCacheTest(conv_t conv_cfg, volatile data16_t* SHARED_DRAM,
+void weightsCacheTest(conv_t conv_cfg, volatile data8_t* SHARED_DRAM,
                       data32_t cmd) {
 #pragma HLS INLINE
     ConfigBoard::setConv(conv_cfg);
@@ -149,12 +147,12 @@ void weightsCacheTest(conv_t conv_cfg, volatile data16_t* SHARED_DRAM,
     } else {
         const conv_t cfg = ConfigBoard::getConv();
         static widx_t channel_off = 0, addr_offset = 0;
-        data16_t f[9];
+        data10_t f[16];
         cidx_t ic = channel_off / cfg.oc;
         cidx_t oc = channel_off % cfg.oc;
         WeightsCache::fetchWeights(ic, oc, f);
         for (int i = 0; i < 16; i++) {
-            SHARED_DRAM[cfg.weights + addr_offset + i] = f[i];
+            SHARED_DRAM[cfg.weights + addr_offset + i] = data8_t(f[i]);
         }
         channel_off += 1;
         addr_offset += 16;

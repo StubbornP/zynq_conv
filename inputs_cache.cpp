@@ -45,7 +45,7 @@ void get16Index(dimidx_t h, dimidx_t w, Index idx[16]) {
         }
     }
 }
-void loadIC(dimidx_t h, dimidx_t w, volatile data8_t* SHM8_DRAM) {
+void loadIC(dimidx_t h, dimidx_t w, volatile const data8_t* SHM8_DRAM) {
 #pragma HLS INLINE
 #pragma HLS PIPELINE
     const conv_t conv_cfg = ConfigBoard::getConv();
@@ -55,7 +55,7 @@ void loadIC(dimidx_t h, dimidx_t w, volatile data8_t* SHM8_DRAM) {
     Index idx;
     getIndex(h, w, idx);
     data8_t* BRAM = &IBRAM[idx.h][idx.w][idx.c];
-    volatile data8_t* DRAM = &SHM8_DRAM[dram_addr];
+    volatile const data8_t* DRAM = &SHM8_DRAM[dram_addr];
     copy_dram<data8_t, 32>(BRAM, DRAM, IC);
 }
 void loadW(volatile data8_t* SHM8_DRAM) {

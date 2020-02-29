@@ -43,7 +43,7 @@ void At_X_A(const data32_t in[16], data32_t out[4]) {
     //     }
 }
 
-void macc(const data10_t in[16], const data16_t weights[16],
+void macc(const data10_t in[16], const data10_t weights[16],
           data32_t result[4]) {
 #pragma HLS INLINE
     data32_t mul[16];
@@ -68,7 +68,7 @@ L_PROCESS_OC:
 #pragma HLS LOOP_TRIPCOUNT min = 32 max = 520 avg = 150
 #pragma HLS UNROLL factor = N_PE
 #pragma HLS PIPELINE II = 1
-        data16_t weights[16];
+        data10_t weights[16];
         data32_t result[4];
 #pragma HLS ARRAY_PARTITION variable = weights complete dim = 0
 #pragma HLS ARRAY_PARTITION variable = result complete dim = 0

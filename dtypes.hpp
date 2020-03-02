@@ -52,7 +52,6 @@ struct conv_t {
     kernel_t kernel;
     stride_t stride;
     bool leaky;
-    bool reuse_weights;
     memaddr_t inputs;
     memaddr_t weights;
     memaddr_t outputs;

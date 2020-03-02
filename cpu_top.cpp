@@ -29,7 +29,7 @@ int WeightsCacheInputChannelOffsetTest(kernel_t k) {
             for (int _h = 0; _h < k; _h++)
                 for (int _w = 0; _w < k; _w++) {
                     int idx = ((_ic * oc + _oc) * k + _h) * k + _w;
-                    Weights[idx] = data16_t(idx % 255);
+                    Weights[idx] = data8_t(idx % 128);
                 }
     widx_t idx = ic * WeightsCache::align;
 
@@ -56,11 +56,11 @@ int WeightsCacheInputChannelOffsetTest(kernel_t k) {
                         off = 4;
 
                     int idx = ((_ic * oc + _oc) * k + _h) * k + _w;
-                    if (weights[off] == data16_t(idx % 255)) {
+                    if (weights[off] == data8_t(idx % 127)) {
                         printf(".");
                     } else {
                         printf("x(%d, %d)\n", (int)weights[off],
-                               (int)data16_t(idx % 255));
+                               (int)data8_t(idx % 127));
                         return 1;
                     }
                 }
@@ -241,7 +241,7 @@ int intergrationCosimTest() {
         Post[_oc] = data32_t(200);
         Post[oc + _oc] = data32_t(200);
     }
-    fpga_top(conv_cfg, Inputs, Weights, Post);
+//    fpga_top(conv_cfg, Inputs, Post, );
     // outputs
     data8_t* out = &Inputs[8 * 1024 * 1024];
     return checkConvResult(conv_cfg, Inputs, Weights, Post, out);

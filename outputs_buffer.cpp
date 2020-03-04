@@ -21,8 +21,8 @@ void setDRAMAddress(dimidx_t oh, dimidx_t ow) {
 	const conv_t& conv_cfg = ConfigBoard::getConv();
     // Calculate Output Memory Address
 	memaddr_t px_off = oh * WStride + ow * conv_cfg.oc;
-    DRAMAddr = conv_cfg.outputs + px_off;
-    LOG("OutputsBuffer: set DRAM address: %x:%x\n", (int)conv_cfg.outputs, (int)DRAMAddr);
+    DRAMAddr = conv_cfg.output_offset + px_off;
+    LOG("OutputsBuffer: set DRAM address: %x:%x\n", (int)conv_cfg.output_offset, (int)DRAMAddr);
 }
 
 data32_t getOutputChannel(cidx_t co) {

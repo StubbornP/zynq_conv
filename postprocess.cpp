@@ -10,10 +10,8 @@ void loadParams(volatile data32_t *SHARED_DRAM) {
 #pragma HLS PIPELINE
 	const conv_t &conv_cfg = ConfigBoard::getConv();
 	const cidx_t oc = conv_cfg.oc;
-	memaddr_t scale = conv_cfg.scale;
-	memaddr_t bias = conv_cfg.bias;
-	volatile data32_t *SCALE_DRAM = &SHARED_DRAM[scale];
-	volatile data32_t *BIAS_DRAM = &SHARED_DRAM[bias];
+	volatile data32_t *SCALE_DRAM = &SHARED_DRAM[0];
+	volatile data32_t *BIAS_DRAM = &SHARED_DRAM[oc];
 
 	copy_dram<data32_t, 32>(SCALE, SCALE_DRAM, oc);
 	copy_dram<data32_t, 32>(BIAS, BIAS_DRAM, oc);

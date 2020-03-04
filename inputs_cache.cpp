@@ -9,7 +9,7 @@ void reset() {
 #pragma HLS INLINE
     const conv_t conv_cfg = ConfigBoard::getConv();
     lh = 0, lw = 0;
-    dram_offset = conv_cfg.inputs;
+    dram_offset = 0;
 }
 void getIndex(dimidx_t h, dimidx_t w, Index& idx) {
 #pragma HLS INLINE

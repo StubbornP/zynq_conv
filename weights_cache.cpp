@@ -26,14 +26,13 @@ void loadWeights(volatile data16_t* SHM16_DRAM) {
     const kernel_t kernel = conv_cfg.kernel;
     const cidx_t words_per_flt = ConfigBoard::is1x1Conv() ? 1 : 9;
     const widx_t words_per_oc = oc * words_per_flt;
-    const memaddr_t weights = conv_cfg.weights;
     const widx_t burst = 72;
 
     assert((kernel == 1 || kernel == 3) || "invalid kernel size");
     align = (oc + N_PE) - (oc % N_PE);
 
     widx_t ci_offset = 0;
-    volatile data16_t* DRAM = &SHM16_DRAM[weights];
+    volatile data16_t* DRAM = SHM16_DRAM;
 
 WCACHE_LOAD:
     for (cidx_t ci = 0; ci < ic; ci++) {
